@@ -48,12 +48,17 @@ sysroot_install()
     STAGE_URL="http://ftp.osuosl.org/pub/funtoo/funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz"
     SYSROOT=/home/sysroots/${CTARGET}
 
-    if [ "$(lsmod | grep kvm_intel)" = "" ]; then
+    if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
         modprobe kvm_intel
         if [ $? -ne 0 ]; then
             printf "error: can't load kvm_intel kernel module\n"
-            return 1;
+            modprobe kvm_amd
+            if [ $? -ne 0 ]; then
+                printf "error: can't load kvm_amd kernel module\n"
+                return 1;
+            fi
         fi
+        printf "loaded kvm kernel module\n"
     fi
 
     if [ -d ${SYSROOT} ]; then
