@@ -49,6 +49,7 @@ sysroot_install()
     STAGE_BALL=${HOME}/Downloads/stage3-latest.tar.xz
     STAGE_URL="http://ftp.osuosl.org/pub/funtoo/funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz"
     SYSROOT=/home/sysroots/${CTARGET}
+    RPI_KERN_BRANCH=rpi-4.9.y
 
     if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
         modprobe kvm_intel
@@ -189,8 +190,8 @@ EOF
         git --git-dir=${SYSROOT}/usr/src/linux/.git --work-tree=${SYSROOT}/usr/src/linux clean -fdx
         git --git-dir=${SYSROOT}/usr/src/linux/.git --work-tree=${SYSROOT}/usr/src/linux checkout master
         git --git-dir=${SYSROOT}/usr/src/linux/.git --work-tree=${SYSROOT}/usr/src/linux fetch --all
-        git --git-dir=${SYSROOT}/usr/src/linux/.git --work-tree=${SYSROOT}/usr/src/linux branch -D rpi-4.9.y
-        git --git-dir=${SYSROOT}/usr/src/linux/.git --work-tree=${SYSROOT}/usr/src/linux checkout rpi-4.9.y
+        git --git-dir=${SYSROOT}/usr/src/linux/.git --work-tree=${SYSROOT}/usr/src/linux branch -D ${RPI_KERN_BRANCH}
+        git --git-dir=${SYSROOT}/usr/src/linux/.git --work-tree=${SYSROOT}/usr/src/linux checkout ${RPI_KERN_BRANCH}
     fi
 
     if [ -f ${SYSROOT}/etc/kernels/arm.default ]; then
