@@ -253,19 +253,19 @@ EOF
         cp -r ${SYSROOT}/usr/src/firmware-nonfree/brcm/* ${SYSROOT}/lib/firmware/brcm
     fi
 
-    if prompt_input_yN "build initramfs"; then
-        rm -f ${SYSROOT}/boot/*initramfs*
-        patch /usr/share/genkernel/defaults/initrd.scripts ${dirname}/initrd.scripts.patch
-        patch /usr/share/genkernel/defaults/login-remote.sh ${dirname}/login-remote.sh.patch
-        sed -e 's/#SSH="no"/SSH="YES"/g' ${SYSROOT}/etc/genkernel.conf > ${SYSROOT}/etc/genkernel.conf.
-        mv ${SYSROOT}/etc/genkernel.conf. ${SYSROOT}/etc/genkernel.conf
-        [ ! -f ~/.ssh/id_dropbear ] && ssh-keygen -f ~/.ssh/id_dropbear -t rsa -N ''
-        ssh-keygen -y -f ~/.ssh/id_dropbear > ${SYSROOT}/etc/dropbear/authorized_keys
-        chroot ${SYSROOT} /bin/sh -c "genkernel --no-mountboot --gpg --lvm --luks --disklabel --kerneldir=/usr/src/linux --kernel-config=/usr/src/linux/.config initramfs"
-        printf "\n* Use ~/.ssh/id_dropbear to ssh into the initramfs.\n"
-        initramfs=$(ls ${SYSROOT}/boot | grep initramfs)
-        printf "initramfs ${initramfs} followkernel" > ${SYSROOT}/boot/config.txt
-    fi
+#    if prompt_input_yN "build initramfs"; then
+#        rm -f ${SYSROOT}/boot/*initramfs*
+#        patch /usr/share/genkernel/defaults/initrd.scripts ${dirname}/initrd.scripts.patch
+#        patch /usr/share/genkernel/defaults/login-remote.sh ${dirname}/login-remote.sh.patch
+#        sed -e 's/#SSH="no"/SSH="YES"/g' ${SYSROOT}/etc/genkernel.conf > ${SYSROOT}/etc/genkernel.conf.
+#        mv ${SYSROOT}/etc/genkernel.conf. ${SYSROOT}/etc/genkernel.conf
+#        [ ! -f ~/.ssh/id_dropbear ] && ssh-keygen -f ~/.ssh/id_dropbear -t rsa -N ''
+#        ssh-keygen -y -f ~/.ssh/id_dropbear > ${SYSROOT}/etc/dropbear/authorized_keys
+#        chroot ${SYSROOT} /bin/sh -c "genkernel --no-mountboot --gpg --lvm --luks --disklabel --kerneldir=/usr/src/linux --kernel-config=/usr/src/linux/.config initramfs"
+#        printf "\n* Use ~/.ssh/id_dropbear to ssh into the initramfs.\n"
+#        initramfs=$(ls ${SYSROOT}/boot | grep initramfs)
+#        printf "initramfs ${initramfs} followkernel" > ${SYSROOT}/boot/config.txt
+#    fi
 
     if prompt_input_yN "wipe and randomize ${SDCARD} bits"; then
         dd if=/dev/urandom of=${SDCARD} bs=1M status=progress
