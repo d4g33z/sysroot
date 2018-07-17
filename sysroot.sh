@@ -163,32 +163,26 @@ EOF
     fi
 
     if prompt_input_yN "build cross-${CTARGET} toolchain"; then
-        if [ ! -d /var/git/gentoo ]; then
-            git clone git://github.com/gentoo/gentoo.git /var/git/gentoo
+        if [ ! -d /var/git/overlay/crossdev]; then
+            mkdir -p /var/git/overlay
+            cd /var/git/overlay
+            git clone  https://github.com/funtoo/skeleton-overlay.git crossdev
+            rm -rf /var/git/overlay/crossdev/.git
+            echo "crossdev" > /var/git/overlay/crossdev/profiles/repo_name
         fi
-        git --git-dir=/var/git/gentoo/.git --work-tree=/var/git/gentoo pull origin
-        echo "gentoo" > /var/git/gentoo/profiles/repo_name
-        cat > /etc/portage/repos.conf/gentoo << EOF
-[gentoo]
-location = /var/git/gentoo
-sync-type = git
-sync-uri = git://github.com/gentoo/gentoo.git
-auto-sync = no
-EOF
+        cd /var/git/overlay/crossdev
+        git init
+        git remote add origin git://github.com/gentoo/gentoo.git
+        git config core.sparseCheckout true
+        echo "sys-devel/gcc" >> .git/info/sparse-checkout
+        git pull --depth=1 origin master
         cat > /etc/portage/repos.conf/crossdev << EOF
 [crossdev]
-location = /var/git/crossdev
-masters = gentoo
+location = /var/git/overlay/crossdev
 auto-sync = no
-use-manifests = true
-thin-manifests = true
+priority = 10
 EOF
-        mkdir -p /var/git/crossdev/profiles
-        chown -R portage:portage /var/git/crossdev
-        echo "crossdev" > /var/git/crossdev/profiles/repo_name
-        rm -rf /var/git/crossdev/cross-${CTARGET}
-        crossdev -S -oO /var/git/crossdev/ -t ${CTARGET}
-        rm -f /etc/portage/repos.conf/{crossdev,gentoo}
+        crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CTARGET}
     fi
 
     if prompt_input_yN "clean and update sources from raspberrypi/linux"; then
