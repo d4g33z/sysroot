@@ -43,7 +43,9 @@ sysroot_install()
 
     CFLAGS="-O2 -pipe -march=armv7-a -mtune=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard"
     CTARGET=armv7a-hardfloat-linux-gnueabi
-    SDCARD=/dev/mmcblk0
+    #SDCARD_DEV=mmcblk0p
+    SDCARD_DEV=sdb
+    SDCARD=/dev/${SDCARD_DEV}
     STAGE_BALL=${HOME}/Downloads/stage3-latest.tar.xz
     STAGE_URL="http://ftp.osuosl.org/pub/funtoo/funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz"
     SYSROOT=/home/sysroots/${CTARGET}
@@ -117,24 +119,24 @@ sysroot_install()
 passwd
 printf '/dev/mapper/rpi-root    /           ext4    defaults,noatime,errors=remount-ro,discard   0 1' >  /etc/fstab
 printf '/dev/mapper/rpi-swap    none        swap    defaults,noatime,discard                     0 0' >> /etc/fstab
-echo "=sys-kernel/genkernel-3.4.40.23 **" > /etc/portage/package.accept_keywords
-echo ">app-crypt/gnupg-2" > /etc/portage/package.mask
-echo "app-crypt/gnupg static" > /etc/portage/package.use
-echo "sys-apps/util-linux static-libs" >> /etc/portage/package.use
-echo "sys-fs/cryptsetup static-libs" >> /etc/portage/package.use
-echo "sys-fs/lvm2 static static-libs" >> /etc/portage/package.use
-echo "sys-libs/e2fsprogs-libs static-libs" >> /etc/portage/package.use
+#echo "=sys-kernel/genkernel-3.4.40.23 **" > /etc/portage/package.accept_keywords
+#echo ">app-crypt/gnupg-2" > /etc/portage/package.mask
+#echo "app-crypt/gnupg static" > /etc/portage/package.use
+#echo "sys-apps/util-linux static-libs" >> /etc/portage/package.use
+#echo "sys-fs/cryptsetup static-libs" >> /etc/portage/package.use
+#echo "sys-fs/lvm2 static static-libs" >> /etc/portage/package.use
+#echo "sys-libs/e2fsprogs-libs static-libs" >> /etc/portage/package.use
 ego sync
-sed -e 's/VERSION_GPG=\'1.4.11\'/VERSION_GPG=\'1.4.21\'/g' /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild > /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild.
-mv /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild. /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild
-ebuild /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild manifest
-emerge "=sys-kernel/genkernel-3.4.40.23" "=app-crypt/gnupg-1.4.21" app-admin/sudo app-editors/vim app-misc/tmux app-shells/zsh  net-misc/dropbear net-misc/networkmanager net-misc/ntp net-wireless/wireless-tools sys-fs/cryptsetup sys-fs/lvm2
-sed -e 's/GPG_VER="1.4.11"/GPG_VER="1.4.21"/g' /etc/genkernel.conf > /etc/genkernel.conf.
-mv /etc/genkernel.conf. /etc/genkernel.conf
-git clone https://github.com/raspberrypi/linux.git /usr/src/linux
-git clone --depth 1 git://github.com/raspberrypi/firmware/ /usr/src/firmware
-cp -r firmware/boot/* /boot
-cp -r firmware/modules /lib
+#sed -e 's/VERSION_GPG=\'1.4.11\'/VERSION_GPG=\'1.4.21\'/g' /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild > /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild.
+#mv /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild. /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild
+#ebuild /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild manifest
+#emerge "=sys-kernel/genkernel-3.4.40.23" "=app-crypt/gnupg-1.4.21" app-admin/sudo app-editors/vim app-misc/tmux app-shells/zsh  net-misc/dropbear net-misc/networkmanager net-misc/ntp net-wireless/wireless-tools sys-fs/cryptsetup sys-fs/lvm2
+#sed -e 's/GPG_VER="1.4.11"/GPG_VER="1.4.21"/g' /etc/genkernel.conf > /etc/genkernel.conf.
+#mv /etc/genkernel.conf. /etc/genkernel.conf
+#git clone https://github.com/raspberrypi/linux.git /usr/src/linux
+#git clone --depth 1 git://github.com/raspberrypi/firmware/ /usr/src/firmware
+#cp -r firmware/boot/* /boot
+#cp -r firmware/modules /lib
 rc-update add NetworkManager default
 rc-update add ntp-client default
 rc-update add sshd default
@@ -281,14 +283,14 @@ EOF
         sfdisk --no-reread --wipe always ${SDCARD} << EOF
 label: dos
 unit: sectors
-${SDCARD}p1 : start=        2048, size=     1048576, type=c
-${SDCARD}p2 : start=     1050624, type=83
+${SDCARD}1 : start=        2048, size=     1048576, type=c
+${SDCARD}2 : start=     1050624, type=83
 EOF
     fi
 
     if prompt_input_yN "format ${SDCARD}"; then
-        cryptsetup luksFormat ${SDCARD}p2
-        cryptsetup luksOpen ${SDCARD}p2 rpi
+        cryptsetup luksFormat ${SDCARD}2
+        cryptsetup luksOpen ${SDCARD}2 rpi
 
         pvcreate /dev/mapper/rpi
         vgcreate rpi /dev/mapper/rpi
@@ -297,13 +299,13 @@ EOF
 
         mkswap -L "swap" /dev/mapper/rpi-swap
         mkfs.ext4 /dev/mapper/rpi-root
-        mkfs.vfat ${SDCARD}p1
+        mkfs.vfat ${SDCARD}1
 
         export GPG_TTY=$(tty)
         dd if=/dev/urandom bs=1024 count=512 | gpg --symmetric --cipher-algo AES256 --output ~/.ssh/rpi.gpg
         echo RELOADAGENT | gpg-connect-agent
         gpg --decrypt ~/.ssh/rpi.gpg > rpi
-        cryptsetup luksAddKey ${SDCARD}p2 rpi
+        cryptsetup luksAddKey ${SDCARD}2 rpi
         shred -u rpi
     fi
 
@@ -317,9 +319,9 @@ EOF
 
     if prompt_input_yN "deploy ${SYSROOT} to ${SDCARD}"; then
         if [ "$(cryptsetup status rpi | grep 'is active')" = "" ]; then
-            cryptsetup luksOpen ${SDCARD}p2 rpi
+            cryptsetup luksOpen ${SDCARD}2 rpi
             if [ $? -ne 0 ]; then
-                printf "error: could not open ${SDCARD}p2 luks partition"
+                printf "error: could not open ${SDCARD}2 luks partition"
                 return 1
             fi
             vgchange --available y rpi
@@ -331,15 +333,15 @@ EOF
         mkdir -p /mnt/rpi
         mount /dev/mapper/rpi-root /mnt/rpi
         mkdir -p /mnt/rpi/boot
-        mount ${SDCARD}p1 /mnt/rpi/boot
+        mount ${SDCARD}1 /mnt/rpi/boot
         umount -Rl ${SYSROOT}/{proc,sys,dev}
 
-        SDCARD_BOOT_UUID=$(blkid -s UUID -o value ${SDCARD}p1)
+        SDCARD_BOOT_UUID=$(blkid -s UUID -o value ${SDCARD}1)
         if [ "$(grep boot /etc/fstab)" = "" ]; then
             printf "UUID=${SDCARD_BOOT_UUID}          /boot           vfat            noauto,noatime  2 2" >> ${SYSROOT}/etc/fstab
         fi
 
-        SDCARD_ROOT_UUID=$(blkid -s UUID -o value ${SDCARD}p2)
+        SDCARD_ROOT_UUID=$(blkid -s UUID -o value ${SDCARD}2)
         printf "ro crypt_root=UUID=${SDCARD_ROOT_UUID} dolvm real_root=/dev/mapper/rpi-root root=/dev/mapper/rpi-root rootfstype=ext4" > ${SYSROOT}/boot/cmdline.txt
 
         if prompt_input_yN "use --delete on rsync for ${SDCARD} files"; then
