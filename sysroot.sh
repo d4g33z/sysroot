@@ -191,8 +191,13 @@ EOF
         crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CTARGET}
     fi
 
-    if prompt_input_yN "download kernel sources from raspberrypi/linux"; then
-        mkdir -p ${KERNEL_WORK}
+    mkdir -p ${KERNEL_WORK}
+
+    if [ ! -d ${KERNEL_WORK}/firmware]; then
+        git clone --depth 1 git://github.com/raspberrypi/firmware/ ${KERNEL_WORK}/firmware
+    fi
+
+    if [ ! -d ${KERNEL_WORK}/linux ]; then
         git clone https://github.com/raspberrypi/linux.git ${KERNEL_WORK}/linux
     fi
 
@@ -256,7 +261,13 @@ EOF
             cp .config ${SYSROOT}/etc/kernels/arm.default
         fi
     fi
+
     cd -
+
+    if prompt_input_yN "copy firmware"; then
+        cp ${KERNEL_WORK}/firmware/boot/{bootcode.bin,fixup*.dat,start*.elf} ${SYSROOT}/boot
+        cp -r ${KERNEL_WORK}/firmware/hardfp/opt ${SYSROOT}
+    fi
 
     if prompt_input_yN "copy non-free wifi firmware for brcm"; then
         if [ ! -d /usr/src/firmware-nonfree ]; then
