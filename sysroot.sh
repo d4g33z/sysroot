@@ -121,6 +121,9 @@ sysroot_install()
 FEATURES=\"\$\{FEATURES\} userfetch\"
 PORTAGE_BINHOST=\"http://kantoo.org/funtoo/packages\"
 EOF
+        cat > ${SYSROOT}/boot/cmdline.txt << EOF
+dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
+EOF
         sed -i "s/\/dev\/sda1.*/\/dev\/mmcblk0p1 \/boot vfat defaults 0 2/" ${SYSROOT}/etc/fstab 
         sed -i "s/\/dev\/sda2.*//" ${SYSROOT}/etc/fstab 
         sed -i "s/\/dev\/sda3.*/\/dev\/mmcblk0p2 \/ ext4  defaults 0 1/" ${SYSROOT}/etc/fstab 
