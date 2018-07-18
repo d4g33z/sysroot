@@ -284,24 +284,25 @@ EOF
     fi
 
     if prompt_input_yN "format ${SDCARD}"; then
-        cryptsetup luksFormat ${SDCARD}2
-        cryptsetup luksOpen ${SDCARD}2 rpi
-
-        pvcreate /dev/mapper/rpi
-        vgcreate rpi /dev/mapper/rpi
-        lvcreate --size 2GB --name swap rpi
-        lvcreate --extents 95%FREE --name root rpi
-
-        mkswap -L "swap" /dev/mapper/rpi-swap
-        mkfs.ext4 /dev/mapper/rpi-root
+#        cryptsetup luksFormat ${SDCARD}2
+#        cryptsetup luksOpen ${SDCARD}2 rpi
+#
+#        pvcreate /dev/mapper/rpi
+#        vgcreate rpi /dev/mapper/rpi
+#        lvcreate --size 2GB --name swap rpi
+#        lvcreate --extents 95%FREE --name root rpi
+#
+#        mkswap -L "swap" /dev/mapper/rpi-swap
+#        mkfs.ext4 /dev/mapper/rpi-root
+        mkfs.ext4 ${SDCARD}2
         mkfs.vfat ${SDCARD}1
-
-        export GPG_TTY=$(tty)
-        dd if=/dev/urandom bs=1024 count=512 | gpg --symmetric --cipher-algo AES256 --output ~/.ssh/rpi.gpg
-        echo RELOADAGENT | gpg-connect-agent
-        gpg --decrypt ~/.ssh/rpi.gpg > rpi
-        cryptsetup luksAddKey ${SDCARD}2 rpi
-        shred -u rpi
+#
+#        export GPG_TTY=$(tty)
+#        dd if=/dev/urandom bs=1024 count=512 | gpg --symmetric --cipher-algo AES256 --output ~/.ssh/rpi.gpg
+#        echo RELOADAGENT | gpg-connect-agent
+#        gpg --decrypt ~/.ssh/rpi.gpg > rpi
+#        cryptsetup luksAddKey ${SDCARD}2 rpi
+#        shred -u rpi
     fi
 
     if [ ! -e ~/.ssh/id_rpi ]; then
