@@ -116,6 +116,32 @@ sysroot_install()
         ROOT=${SYSROOT}/ emerge --usepkgonly --oneshot --nodeps qemu
     fi
 
+    if prompt_input_yN "configure sysroot"; then
+         cat > ${SYSROOT}/etc/portage/make.conf << EOF
+FEATURES=\"\$\{FEATURES\} userfetch\"
+PORTAGE_BINHOST=\"http://kantoo.org/funtoo/packages\"
+EOF
+        sed -i "s/\/dev\/sda1.*/\/dev\/mmcblk0p1 \/boot vfat defaults 0 2/" ${SYSROOT}/etc/fstab 
+        sed -i "s/\/dev\/sda2.*//" ${SYSROOT}/etc/fstab 
+        sed -i "s/\/dev\/sda3.*/\/dev\/mmcblk0p2 \/ ext4  defaults 0 1/" ${SYSROOT}/etc/fstab 
+        sed -i "s/\#\/dev\/cdrom.*//" ${SYSROOT}/etc/fstab
+
+
+        echo "PermitRootLogin yes" >> ${SYSROOT}/etc/ssh/sshd_config
+
+        sed -i "s/s0\:.*/\#&/" ${SYSROOT}/etc/inittab
+
+        ln -sf /etc/init.d/swclock ${SYSROOT}/etc/runlevels/boot
+        rm ${SYSROOT}/etc/runlevels/boot/hwclock
+        mkdir -p ${SYSROOT}/lib/rc/cache
+        touch ${SYSROOT}/lib/rc/cache/shutdowntime
+
+        ln -sf /etc/init.d/sshd ${SYSROOT}/etc/runlevels/default
+        ln -sf /etc/init.d/dhcpcd ${SYSROOT}/etc/runlevels/default
+
+        echo "LDPATH=\"/opt/vc/lib\"" > ${SYSROOT}/etc/env.d/99vc
+
+    fi
     sysroot_mount ${SYSROOT}
 
     if prompt_input_yN "prepare the sysroot"; then
