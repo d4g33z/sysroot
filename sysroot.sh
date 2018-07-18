@@ -248,6 +248,10 @@ EOF
         cp arch/arm/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
         scripts/mkknlimg arch/arm/boot/zImage ${SYSROOT}/boot/kernel7.img
 
+        if prompt_input_yN "remove kernel headers and source"; then
+            rm ${SYSROOT}/lib/modules/`get_kernel_release`/{build,source}
+        fi
+
         if prompt_input_yN "save new kernel config to /etc/kernels"; then
             cp .config ${SYSROOT}/etc/kernels/arm.default
         fi
