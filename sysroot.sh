@@ -365,32 +365,33 @@ EOF
 #    fi
 
     if prompt_input_yN "deploy ${SYSROOT} to ${SDCARD}"; then
-        if [ "$(cryptsetup status rpi | grep 'is active')" = "" ]; then
-            cryptsetup luksOpen ${SDCARD}2 rpi
-            if [ $? -ne 0 ]; then
-                printf "error: could not open ${SDCARD}2 luks partition"
-                return 1
-            fi
-            vgchange --available y rpi
-            if [ $? -ne 0 ]; then
-                printf "error: could not make volumes available"
-            fi
-        fi
+#        if [ "$(cryptsetup status rpi | grep 'is active')" = "" ]; then
+#            cryptsetup luksOpen ${SDCARD}2 rpi
+#            if [ $? -ne 0 ]; then
+#                printf "error: could not open ${SDCARD}2 luks partition"
+#                return 1
+#            fi
+#            vgchange --available y rpi
+#            if [ $? -ne 0 ]; then
+#                printf "error: could not make volumes available"
+#            fi
+#        fi
 
         mkdir -p /mnt/rpi
-        mount /dev/mapper/rpi-root /mnt/rpi
+#        mount /dev/mapper/rpi-root /mnt/rpi
+        mount ${SDCARD}2 /mnt/rpi
         mkdir -p /mnt/rpi/boot
         mount ${SDCARD}1 /mnt/rpi/boot
         umount -Rl ${SYSROOT}/{proc,sys,dev}
 
-        SDCARD_BOOT_UUID=$(blkid -s UUID -o value ${SDCARD}1)
-        if [ "$(grep boot /etc/fstab)" = "" ]; then
-            printf "UUID=${SDCARD_BOOT_UUID}          /boot           vfat            noauto,noatime  2 2" >> ${SYSROOT}/etc/fstab
-        fi
-
-        SDCARD_ROOT_UUID=$(blkid -s UUID -o value ${SDCARD}2)
-        printf "ro crypt_root=UUID=${SDCARD_ROOT_UUID} dolvm real_root=/dev/mapper/rpi-root root=/dev/mapper/rpi-root rootfstype=ext4" > ${SYSROOT}/boot/cmdline.txt
-
+#        SDCARD_BOOT_UUID=$(blkid -s UUID -o value ${SDCARD}1)
+#        if [ "$(grep boot /etc/fstab)" = "" ]; then
+#            printf "UUID=${SDCARD_BOOT_UUID}          /boot           vfat            noauto,noatime  2 2" >> ${SYSROOT}/etc/fstab
+#        fi
+#
+#        SDCARD_ROOT_UUID=$(blkid -s UUID -o value ${SDCARD}2)
+#        printf "ro crypt_root=UUID=${SDCARD_ROOT_UUID} dolvm real_root=/dev/mapper/rpi-root root=/dev/mapper/rpi-root rootfstype=ext4" > ${SYSROOT}/boot/cmdline.txt
+#
         if prompt_input_yN "use --delete on rsync for ${SDCARD} files"; then
             RSYNC_DELETE=--delete
         fi
@@ -399,37 +400,38 @@ EOF
               --recursive \
               --exclude "var/git/*" \
             ${RSYNC_DELETE} \
-            ${SYSROOT}/ /mnt/rpi/
+            ${SYSROOT}/{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev} \
+            /mnt/rpi/
 
         umount /mnt/rpi/boot
         umount /mnt/rpi
-        vgchange --available n rpi
-        cryptsetup luksClose rpi
+#        vgchange --available n rpi
+#        cryptsetup luksClose rpi
     fi
 
-    if [ "$(grep 'Host dropbear' ~/.ssh/config || grep 'Host rpi' ~/.ssh/config)" = "" ]; then
-        if prompt_input_yN "add dropbear and rpi hosts to ~/.ssh/config"; then
-            mkdir -p ~/.ssh
-            printf "what is the hostname? "
-            read ip
-            cat >> ~/.ssh/config << EOF
-Host dropbear
-    Hostname ${ip}
-    UserKnownHostsFile ~/.ssh/known_hosts.dropbear
-    IdentityFile ~/.ssh/id_dropbear
-    User root
-EOF
-            cat >> ~/.ssh/config << EOF
-Host rpi
-    Hostname ${ip}
-    UserKnownHostsFile ~/.ssh/known_hosts.rpi
-    IdentityFile ~/.ssh/id_rpi
-    User root
-EOF
-        fi
-    fi
+#    if [ "$(grep 'Host dropbear' ~/.ssh/config || grep 'Host rpi' ~/.ssh/config)" = "" ]; then
+#        if prompt_input_yN "add dropbear and rpi hosts to ~/.ssh/config"; then
+#            mkdir -p ~/.ssh
+#            printf "what is the hostname? "
+#            read ip
+#            cat >> ~/.ssh/config << EOF
+#Host dropbear
+#    Hostname ${ip}
+#    UserKnownHostsFile ~/.ssh/known_hosts.dropbear
+#    IdentityFile ~/.ssh/id_dropbear
+#    User root
+#EOF
+#            cat >> ~/.ssh/config << EOF
+#Host rpi
+#    Hostname ${ip}
+#    UserKnownHostsFile ~/.ssh/known_hosts.rpi
+#    IdentityFile ~/.ssh/id_rpi
+#    User root
+#EOF
+#        fi
+#    fi
 
-    printf "use this to unlock the root:\n"
-    printf "cat ~/.ssh/rpi.gpg | ssh dropbear post root; ssh dropbear\n\n"
+#    printf "use this to unlock the root:\n"
+#    printf "cat ~/.ssh/rpi.gpg | ssh dropbear post root; ssh dropbear\n\n"
 }
 
