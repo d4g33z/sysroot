@@ -51,6 +51,11 @@ sysroot_install()
     SYSROOT=/home/sysroots/${CTARGET}
     RPI_KERN_BRANCH=rpi-4.9.y
 
+    get_kernel_release() { (cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET}- make kernelrelease;) }
+    get_kernel_version() { (cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET}- make kernelversion;) }
+    set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
+
+
     if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
         modprobe kvm_intel
         if [ $? -ne 0 ]; then
