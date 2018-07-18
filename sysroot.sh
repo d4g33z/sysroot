@@ -40,7 +40,7 @@ sysroot_install()
         printf "error: must run as root\n"
         return 1;
     fi
-
+    KERNEL_WORK=/usr/src/rpi_kernel
     CFLAGS="-O2 -pipe -march=armv7-a -mtune=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard"
     CTARGET=armv7a-hardfloat-linux-gnueabi
     #SDCARD_DEV=mmcblk0p
@@ -186,27 +186,32 @@ EOF
         crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CTARGET}
     fi
 
+    if prompt_input_yN "download kernel sources from raspberrypi/linux"; then
+        mkdir -p ${KERNEL_WORK}
+        git clone https://github.com/raspberrypi/linux.git ${KERNEL_WORK}/linux
+    fi
+
     if prompt_input_yN "clean and update sources from raspberrypi/linux"; then
-        git --git-dir=${SYSROOT}/usr/src/linux/.git --work-tree=${SYSROOT}/usr/src/linux clean -fdx
-        git --git-dir=${SYSROOT}/usr/src/linux/.git --work-tree=${SYSROOT}/usr/src/linux checkout master
-        git --git-dir=${SYSROOT}/usr/src/linux/.git --work-tree=${SYSROOT}/usr/src/linux fetch --all
-        git --git-dir=${SYSROOT}/usr/src/linux/.git --work-tree=${SYSROOT}/usr/src/linux branch -D ${RPI_KERN_BRANCH}
-        git --git-dir=${SYSROOT}/usr/src/linux/.git --work-tree=${SYSROOT}/usr/src/linux checkout ${RPI_KERN_BRANCH}
+        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux clean -fdx
+        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout master
+        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux fetch --all
+        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux branch -D ${RPI_KERN_BRANCH}
+        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout ${RPI_KERN_BRANCH}
     fi
 
     if [ -f ${SYSROOT}/etc/kernels/arm.default ]; then
-        cp ${SYSROOT}/etc/kernels/arm.default ${SYSROOT}/usr/src/linux/.config
+        cp ${SYSROOT}/etc/kernels/arm.default ${KERNEL_WORK}/linux/.config
     else
         mkdir -p ${SYSROOT}/etc/kernels
         cp ${dirname}/arm.default ${SYSROOT}/etc/kernels
     fi
 
     nproc=$(nproc)
-    if [ ! -d ${SYSROOT}/usr/src/linux ]; then
-        printf "error: no sources found in ${SYSROOT}/usr/src/linux\n"
+    if [ ! -d ${KERNEL_WORK}/linux ]; then
+        printf "error: no sources found in ${KERNEL_WORK}/linux\n"
         return 1
     fi
-    cd ${SYSROOT}/usr/src/linux
+    cd ${KERNEL_WORK}/linux
     if prompt_input_yN "make bcm2709_defconfig"; then
         make -j${nproc} \
         ARCH=arm \
@@ -246,11 +251,11 @@ EOF
 
     if prompt_input_yN "copy non-free wifi firmware for brcm"; then
         if [ ! -d /usr/src/firmware-nonfree ]; then
-            git clone --depth 1 https://github.com/RPi-Distro/firmware-nonfree ${SYSROOT}/usr/src/firmware-nonfree
+            git clone --depth 1 https://github.com/RPi-Distro/firmware-nonfree ${KERNEL_WORK}/firmware-nonfree
         fi
-        git --git-dir=${SYSROOT}/usr/src/firmware-nonfree/.git --work-tree=${SYSROOT}/usr/src/firmware-nonfree pull origin \
+        git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull origin
         mkdir -p ${SYSROOT}/lib/firmware/brcm
-        cp -r ${SYSROOT}/usr/src/firmware-nonfree/brcm/* ${SYSROOT}/lib/firmware/brcm
+        cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/* ${SYSROOT}/lib/firmware/brcm
     fi
 
 #    if prompt_input_yN "build initramfs"; then
