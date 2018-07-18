@@ -296,12 +296,12 @@ EOF
     fi
 
     if prompt_input_yN "copy non-free wifi firmware for brcm"; then
-        if [ ! -d /usr/src/firmware-nonfree ]; then
+        if [ ! -d ${KERNEL_WORK}/firmware-nonfree ]; then
             git clone --depth 1 https://github.com/RPi-Distro/firmware-nonfree ${KERNEL_WORK}/firmware-nonfree
         fi
         git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull origin
         mkdir -p ${SYSROOT}/lib/firmware/brcm
-        cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/* ${SYSROOT}/lib/firmware/brcm
+        cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/brcmfmac43430-sdio.{bin,txt} ${SYSROOT}/lib/firmware/brcm
     fi
 
 #    if prompt_input_yN "build initramfs"; then
