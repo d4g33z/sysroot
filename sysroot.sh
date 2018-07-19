@@ -151,9 +151,9 @@ EOF
         if [ ! -f ${SYSROOT}/prepare.sh ]; then
             cat > ${SYSROOT}/prepare.sh << EOF
 #!/bin/sh
-passwd
-printf '/dev/mapper/rpi-root    /           ext4    defaults,noatime,errors=remount-ro,discard   0 1' >  /etc/fstab
-printf '/dev/mapper/rpi-swap    none        swap    defaults,noatime,discard                     0 0' >> /etc/fstab
+#passwd
+#printf '/dev/mapper/rpi-root    /           ext4    defaults,noatime,errors=remount-ro,discard   0 1' >  /etc/fstab
+#printf '/dev/mapper/rpi-swap    none        swap    defaults,noatime,discard                     0 0' >> /etc/fstab
 #echo "=sys-kernel/genkernel-3.4.40.23 **" > /etc/portage/package.accept_keywords
 #echo ">app-crypt/gnupg-2" > /etc/portage/package.mask
 #echo "app-crypt/gnupg static" > /etc/portage/package.use
@@ -161,7 +161,7 @@ printf '/dev/mapper/rpi-swap    none        swap    defaults,noatime,discard    
 #echo "sys-fs/cryptsetup static-libs" >> /etc/portage/package.use
 #echo "sys-fs/lvm2 static static-libs" >> /etc/portage/package.use
 #echo "sys-libs/e2fsprogs-libs static-libs" >> /etc/portage/package.use
-ego sync
+#ego sync
 #sed -e 's/VERSION_GPG=\'1.4.11\'/VERSION_GPG=\'1.4.21\'/g' /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild > /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild.
 #mv /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild. /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild
 #ebuild /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild manifest
@@ -172,11 +172,11 @@ ego sync
 #git clone --depth 1 git://github.com/raspberrypi/firmware/ /usr/src/firmware
 #cp -r firmware/boot/* /boot
 #cp -r firmware/modules /lib
-rc-update add NetworkManager default
-rc-update add ntp-client default
-rc-update add sshd default
-rc-update add swclock boot
-rc-update del hwclock boot
+#rc-update add NetworkManager default
+#rc-update add ntp-client default
+#rc-update add sshd default
+#rc-update add swclock boot
+#rc-update del hwclock boot
 EOF
             chmod +x ${SYSROOT}/prepare.sh
         fi
