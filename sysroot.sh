@@ -205,18 +205,20 @@ EOF
             rm -rf /var/git/overlay/crossdev/.git
             echo "crossdev" > /var/git/overlay/crossdev/profiles/repo_name
         fi
-        cd /var/git/overlay/crossdev
-        git init
-        git remote add origin git://github.com/gentoo/gentoo.git
-        git config core.sparseCheckout true
-        echo "sys-devel/gcc" >> .git/info/sparse-checkout
-        git pull --depth=1 origin master
-        cat > /etc/portage/repos.conf/crossdev << EOF
+        if [ ! -d /var/git/overlay/crossdev/.git]; then
+            cd /var/git/overlay/crossdev
+            git init
+            git remote add origin git://github.com/gentoo/gentoo.git
+            git config core.sparseCheckout true
+            echo "sys-devel/gcc" > .git/info/sparse-checkout
+            git pull --depth=1 origin master
+            cat > /etc/portage/repos.conf/crossdev << EOF
 [crossdev]
 location = /var/git/overlay/crossdev
 auto-sync = no
 priority = 10
 EOF
+        fi
         crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CTARGET}
     fi
 
