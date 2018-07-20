@@ -1,0 +1,667 @@
+== Introduction == 
+This is the updated quick and dirty HOWTO covering the automation of cross-compiling, kernel building, emulation and booting of arbitrary architectures, but specifically focused on the cross compiling the Raspeberry Pi linux kernel sources for target arm-linux-gnueabihf and booting it on Raspberry Pi boards with a funtoo stage 3. It's so quick and dirty you probably won't be able replicate the results here on your first try. But it is possible!
+
+This is an update of [[Crossdev_Automation]], reflecting the changes needed to accomodate the new kits structure of Funtoo, and to clean up the scripting used for automation. The document will remain available for reference purposes.
+
+== Get the Bash Script ==
+
+Development code is available on [https://github.com/d4g33z/sysroot.git github]. The structure of the file {{c|sysroot.sh}} should roughly correspond to the information contained here.
+
+== The Cross Compiling Environment == 
+
+=== Using a Local Overlay with Crossdev ===
+{{Package|sys-devel/crossdev}} is a wonderful script for managing cross-compiling environments on Gentoo, but it is incompatible with Funtoo's improved gcc ebuilds. There is incomplete documentation of a pure Funtoo [https://bugs.funtoo.org/browse/FL-3787 solution], but there has been no follow up on a complete implementation.
+
+A simple solution is to create a [[Local_Overlay|local overlay]] named "crossdev", store gentoo ebuilds and patches in it, and use a crossdev command line switch to direct it to search the overlay for the appropriate ebuilds. This has the advantage of isolating all gentoo files and resulting binaries in a single directory. 
+
+Let's follow the directions from [[Local_Overlay]], and remove the .git subdirectory. 
+{{console|body=
+###i## mkdir /var/git/overlay
+###i## cd /var/git/overlay
+###i## git clone  https://github.com/funtoo/skeleton-overlay.git crossdev
+###i## rm -rf /var/git/overlay/crossdev/.git
+###i## echo "crossdev" > /var/git/overlay/crossdev/profiles/repo_name
+}}
+
+Edit config files to match.
+{{file|name=/etc/portage/repos.conf/crossdev.conf|lang=|desc=Add the crossdev overlay to portage|body=
+[crossdev]
+location = /var/git/overlay/crossdev
+auto-sync = no
+priority = 10
+}}
+
+Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdirectory-only-of-a-git-repository/28039894#28039894 sparse checkout] of the main Gentoo repo.
+
+{{console|body=
+###i## cd /var/git/overlay/crossdev
+###i## git init
+###i## git remote add origin git://github.com/gentoo/gentoo.git
+###i## git config core.sparseCheckout true
+###i## echo "sys-devel/gcc" >> .git/info/sparse-checkout
+###i## git pull --depth=1 origin master
+}}
+
+Install crossdev.
+{{console|body=
+# echo "sys-devel/crossdev **" >> /etc/portage/package.keywords/crossdev
+# echo "=sys-devel/crossdev-99999999" >> /etc/portage/package.unmask/crossdev
+# emerge crossdev
+}}
+
+=== Managing Environment Variables ===
+Let's try to manage all the files needed with some simple environment variables we construct from user input. All exported variables and functions are part of an XC_ namespace for tab completion.
+
+{{file|name=xcompile_variables.sh|lang=bash|desc=define variables|body=
+# Start User Input
+#-------------------------------------------
+# Where do we isolate all our work?
+# This directory must exist and be created explicitly by you.
+XC_WORK= <xc_work>
+
+if ! [[ -d $XC_WORK ]]; 
+    echo "The directory $XC_WORK does not exist."
+    exit
+fi
+
+#How do we distinguish this build?
+XC_LINUX_PREFIX= <xc_linux_prefix>
+
+# NOTE: if we need gcc-4.9 as well! How do we store that data?
+# use arguments to crossdev script
+
+# Which crossdev target and architecture to build the kenel?
+# Note, this not necessarily what built the stage3
+#e.g.
+CROSSDEV_TARGET=arm-linux-gnueabihf
+ARCH=arm
+
+#which stage3 do we need and what CFLAGS does it use?
+#e.g.
+STAGE3=funtoo-current/arm-32bit/raspi3
+STAGE3_NAME=stage3-latest.tar.xz
+STAGE3_CHOST=armv7a-hardfloat-linux-gnueabi
+STAGE3_CFLAGS="-O2 -pipe -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard"
+
+# End User Input
+#-------------------------------------------
+#-------------------------------------------
+# Some functions
+XC_get_kernel_release() { (cd $XC_KERNEL_SRC ; ARCH=$ARCH CROSS_COMPILE=$CROSSDEV_TARGET- make kernelrelease;) }
+XC_get_kernel_version() { (cd $XC_KERNEL_SRC ; ARCH=$ARCH CROSS_COMPILE=$CROSSDEV_TARGET- make kernelversion;) }
+XC_set_kernel_extraversion() {(cd $XC_KERNEL_SRC; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
+#-------------------------------------------
+CONFIGS=$XC_WORK/configs/$XC_LINUX_PREFIX
+KERNELS=$XC_WORK/kernels/$XC_LINUX_PREFIX
+PATCHES=$XC_WORK/patches/$XC_LINUX_PREFIX
+FIRMWARE=$XC_WORK/firmware/$XC_LINUX_PREFIX
+LINUX=$XC_WORK/linux/$XC_LINUX_PREFIX
+TOOLS=$XC_WORK/tools/$XC_LINUX_PREFIX
+UBOOTS=$XC_WORK/uboots/$XC_LINUX_PREFIX
+IMAGES=$XC_WORK/images/$XC_LINUX_PREFIX
+STAGE3S=$XC_WORK/stage3s/$XC_LINUX_PREFIX/
+
+#-------------------------------------------
+XC_PATCHES=$PATCHES
+XC_FIRMWARE=$FIRMWARE
+XC_TOOLS=$TOOLS
+XC_KERNEL_SRC=$LINUX/linux
+#-------------------------------------------
+#set our kernel sources and config file
+XC_KERNEL_OLDCONFIG=NONE
+~
+#Which kernel version are we building?
+if [ -d $XC_KERNEL_SRC ]; then
+    KERNEL_VERSION=`(cd $XC_KERNEL_SRC/ && ARCH=$ARCH CROSS_COMPILE=$CROSSDEV- make kernelversion 2>/dev/null )`
+else
+    KERNEL_VERSION=unknown
+fi~
+~
+XC_KERNEL_IMG=$KERNELS/kernel-$KERNEL_VERSION.img
+XC_KERNEL_CONFIG=$CONFIGS/$KERNEL_VERSION.kconf
+#-------------------------------------------
+#funtoo stage3s. It is possible to mount your install media at $XC_STAGE3S.
+#XC_STAGE3S=$STAGE3S
+XC_STAGE3S=$STAGE3S/$STAGE3
+XC_STAGE3=$XC_STAGE3S/$STAGE3_NAME
+XC_STAGE3_URL=http://ftp.osuosl.org/pub/funtoo/$STAGE3/$STAGE3_NAME
+
+
+#-------------------------------------------
+#u-boot
+UBOOT=u-boot-latest.tar.bz2
+UBOOT_URL=ftp://ftp.denx.de/pub/u-boot/$UBOOT
+XC_UBOOT=$UBOOTS/u-boot #unpacked sources
+~
+#-------------------------------------------
+#u-boot
+UBOOT=u-boot-latest.tar.bz2
+UBOOT_URL=ftp://ftp.denx.de/pub/u-boot/$UBOOT
+XC_UBOOT=$UBOOTS/u-boot #unpacked sources
+~
+#-------------------------------------------
+#sdcard image creation
+XC_IMAGE=$IMAGES/`echo $STAGE3  {{!}} tr / -`.img
+~
+XC_VARS=(ARCH   CROSSDEV_TARGET     XC_STAGE3_CHOST     XC_STAGE3_CFLAGS    XC_LINUX_PREFIX     XC_WORK     XC_KERNEL_SRC   XC_KERNEL_CONFIG    XC_KERNEL_IMG       XC_TOOLS    XC_PATCHES      XC_FIRMWARE     XC_STAGE3_URL   XC_STAGE3    XC_STAGE3S     XC_IMAGE)
+~
+XC_VALS=($ARCH  $CROSSDEV_TARGET    $STAGE3_CHOST       "$STAGE3_CFLAGS"    $XC_LINUX_PREFIX    $XC_WORK    $XC_KERNEL_SRC  $XC_KERNEL_CONFIG   $XC_KERNEL_IMG      $XC_TOOLS   $XC_PATCHES     $XC_FIRMWARE    $XC_STAGE3_URL  $XC_STAGE3   $XC_STAGE3S    "$XC_IMAGE")
+~
+echo "Your current cross compilation environment:"
+echo "=============================="
+for ((i=0; i< ${#XC_VARS[@]}; i++)); do
+        echo ${XC_VARS[$i]}; echo ${XC_VALS[$i]};
+            echo "==============================";
+done;
+echo "=============================="
+echo "Your current kernel configs for $XC_LINUX_PREFIX type builds:"
+for file in $(dirname $XC_KERNEL_CONFIG)/*; do
+    if [[ $file == *.kconf ]]; then
+        echo -n "Use $(basename $file) as config (y/n)? "
+        read answer
+        if echo "$answer" {{!}} grep -iq "^y" ;then
+            echo "Setting XC_KERNEL_OLDCONFIG to $file"
+            XC_KERNEL_OLDCONFIG=$file
+            break
+        else
+            echo
+        fi
+    fi
+done;
+~
+echo "=============================="
+echo XC_KERNEL_OLDCONFIG=$XC_KERNEL_OLDCONFIG
+echo "=============================="
+echo "If XC_KERNEL_OLDCONFIG is not set, \
+you must create a new .config yourself or use a def_config target"
+
+}}
+
+
+{{console|body=
+# . xcompile_varables.sh
+
+Your current cross compilation environment:
+==============================
+ARCH
+arm
+==============================
+CROSSDEV_TARGET
+arm-linux-gnueabihf
+==============================
+XC_STAGE3_CHOST
+armv7a-hardfloat-linux-gnueabi
+==============================
+XC_STAGE3_CFLAGS
+-O2 -pipe -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard
+==============================
+XC_LINUX_PREFIX
+$XC_LINUX_PREFIX
+==============================
+XC_WORK
+$XC_WORK
+==============================
+XC_KERNEL_SRC
+$XC_WORK/linux/$XC_LINUX_PREFIX/linux
+==============================
+XC_KERNEL_CONFIG
+$XC_WORK/configs/$XC_LINUX_PREFIX/unknown.kconf
+==============================
+XC_KERNEL_IMG
+$XC_WORK/kernels/$XC_LINUX_PREFIX/kernel-unknown.img
+==============================
+XC_TOOLS
+$XC_WORK/tools/$XC_LINUX_PREFIX
+==============================
+XC_PATCHES
+$XC_WORK/patches/$XC_LINUX_PREFIX
+==============================
+XC_FIRMWARE
+$XC_WORK/firmware/$XC_LINUX_PREFIX
+==============================
+XC_STAGE3_URL
+http://ftp.osuosl.org/pub/funtoo/funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz
+==============================
+XC_STAGE3
+$XC_WORK/stage3s/$XC_LINUX_PREFIX//funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz
+==============================
+XC_STAGE3S
+$XC_WORK/stage3s/$XC_LINUX_PREFIX//funtoo-current/arm-32bit/raspi3
+==============================
+XC_IMAGE
+$XC_WORK/images/$XC_LINUX_PREFIX/funtoo-current-arm-32bit-raspi3.img
+==============================
+==============================
+Your current kernel configs for $XC_LINUX_PREFIX type builds:
+==============================
+XC_KERNEL_OLDCONFIG=NONE
+==============================
+If XC_KERNEL_OLDCONFIG is not set, you must create a new .config yourself or use a def_config target
+
+}}
+
+== Retrieving Necessary Source Trees ==
+Which sources your retrieve depends on your hardware. Most manufacturers make a git repo available. For this example, we use the Raspberry Pi sources.
+
+Get the latest Raspberry Pi kernel source (https://github.com/raspberrypi/linux), compiler (https://github.com/raspberrypi/tools), and firmware (https://github.com/raspberrypi/firmware) using a .git extension to distinguish them from ordinary directories. 
+
+{{note|These are large, slow downloads, so don't do them more than necessary. Providing a symbolic link to their location in a more stable part of your filesystem is a better way to go. Changing the value of $XC_KERNEL_SRC via the <kernel_prefix> string and rerunning any git commands will cause a new cloning operation.}}
+
+{{console|body=
+# git clone https://github.com/raspberrypi/linux $XC_KERNEL_SRC
+# git clone https://github.com/raspberrypi/tools $XC_TOOLS/tools.git
+# git clone git://github.com/raspberrypi/firmware $XC_FIRMWARE/firmware.git
+}}
+
+=== Do You Really Need to Build the Kernel? ===
+These repositories should contain existing kernel images and modules to get you going without actually building the kernel yourself. Why not try
+{{console|body=
+$ XC_KERNEL_IMG=$XC_FIRMWARE/boot/kernel7.img
+$ cp -r $XC_FIRMWARE/boot/modules/<some_kernel_version> $XC_STAGE3/lib/modules
+}}
+
+Find similar analogues to hand dts, firmware, config files, etc, using existing files in repositories instead of building them yourself as described below.
+
+== Kernel Building ==
+The steps here are a summary of [http://elinux.org/Raspberry_Pi_Kernel_Compilation#Funtoo_or_Gentoo_Linux this document] and [https://www.raspberrypi.org/documentation/linux/kernel/building.md this], which includes the use of device tree blobs.
+
+After downloading or syncing the the kernel sources, run the xcompile_variables.sh script again to set $KERNEL_VERSION properly.
+{{console|body=
+# echo $KERNEL_VERSION
+unknown
+# . xcompile_variables.sh 
+....<script output>...
+# echo $KERNEL_VERSION
+4.4.45
+}}
+
+=== Construct the Crossdev Target ===
+Make the most up to date version of the crossdev target and set the appropriate default compilers with gcc-config. You might have many options here depending on your system.
+
+{{console|body=
+# crossdev -t $CROSSDEV_TARGET -P -v
+
+# gcc-config -l
+ [1] armv6j-hardfloat-linux-gnueabi-4.8.4 *
+
+ [2] armv7a-hardfloat-linux-gnueabi-4.8.4
+ [3] armv7a-hardfloat-linux-gnueabi-4.9.3
+ [4] armv7a-hardfloat-linux-gnueabi-5.3.0 *
+
+ [5] x86_64-pc-linux-gnu-4.8.4
+ [6] x86_64-pc-linux-gnu-4.9.3 *
+}}
+
+Notice that I built armv7a-hardfloat-linux-gnueabi-5.3.0 with x86_64-pc-linux-gnu-4.9.3.
+
+
+
+Clean the source tree and copy over any existing kernel config or create a freshie. 
+{{warning|'make mrproper' is a bummer if you don't want to do a complete kernel rebuild or are not starting from scratch. Try to preserve the state of your $XC_KERNEL_SRC directory. }}
+{{console|body=
+# cd $XC_KERNEL_SRC
+# make mrproper 
+}}
+
+If you're starting fresh ($XC_KERNEL_OLDCONFIG is NONE), make a defconfig target and work with that. If you are building onto your great chain of kernel configs, use $XC_KERNEL_OLDCONFIG. 
+
+=== Using defconfigs ===
+There are many useful make targets to control kernel configs. In particular, the architecture specific ones are most useful in cross-compiling applications.
+
+NOTE THE TRAILING DASH ON $CROSS_COMPILE.
+{{console|body=
+# make_defconfig_help() { make help {{!}} sed -n -e '/Architecture specific targets.*/,$p'; }
+# ARCH=$ARCH CROSS_COMPILE=$CROSSDEV_TARGET- make_defconfig_help
+Architecture specific targets (arm):
+... <targets we don't need> ...
+
+  acs5k_defconfig          - Build for acs5k
+  acs5k_tiny_defconfig     - Build for acs5k_tiny
+  am200epdkit_defconfig    - Build for am200epdkit
+  assabet_defconfig        - Build for assabet
+  at91_dt_defconfig        - Build for at91_dt
+  axm55xx_defconfig        - Build for axm55xx
+  badge4_defconfig         - Build for badge4
+##r##  bcm2709_defconfig        - Build for bcm2709
+  bcm2835_defconfig        - Build for bcm2835
+  bcm_defconfig            - Build for bcm
+  bcmrpi_defconfig         - Build for bcmrpi
+  cerfcube_defconfig       - Build for cerfcube
+  clps711x_defconfig       - Build for clps711x
+  ...<lots o configs>...
+  zeus_defconfig           - Build for zeus
+  zx_defconfig             - Build for zx
+
+...<more targets we don't need> ...
+ 
+}}
+
+{{console|body=
+# export XC_DEF_CONFIG=bcm2709_defconfig
+# ARCH=$ARCH CROSS_COMPILE=$CROSSDEV_TARGET- make $XC_DEF_CONFIG
+
+}}
+
+=== Reusing Previous Kernel Configurations ===
+Use $XC_KERNEL_OLDCONFIG and update it.
+{{console|body=
+# cp $XC_KERNEL_OLDCONFIG  $XC_KERNEL_SRC/.config
+# ARCH=$ARCH CROSS_COMPILE=$CROSSDEV_TARGET- make oldconfig
+}}
+
+=== Tweak the Kernel ===
+Modify the kernel configuration using the ncurses interface and save it.
+{{note|def_config is good place to start, but they appear to be very bloated 'all bases covered' configurations. Compiling time for a kernel can radically reduced by pruning unnecessary modules. At some point, a repository of minimal configs may be available, but in the meantime you are on your own.
+
+See [http://raspberrypi.stackexchange.com/questions/24092/kernel-config-necessary-options this question. ]
+
+See http://www.funtoo.org/Arm_Kernel_Configuration.
+}}
+
+{{console|body=
+# ARCH=$ARCH CROSS_COMPILE=$CROSSDEV_TARGET- make menuconfig
+}}
+
+=== Save Those Configs ===
+Whether you used a defconfig or and oldconfig, let's store and reuse them.
+{{console|body=
+# cp .config $XC_KERNEL_CONFIG
+}}
+
+=== Setting $CROSSDEV_TARGET in the Kernel ===
+There is a kernel option to allow us to drop the CROSS_COMPILE environment variable. The disadvantage to this is that you have to track its state and synchronize it with your build environment. It can be done, though.
+
+=== Make the Kernel ===
+Build the new kernel, using 'make -j <N>' to specify compiler job count (a matter of taste, time and thermal paste). Don't install anything yet! Why don't you skip ahead and get the $XC_STAGE3 set up while the kernel is baking?
+
+{{tip|Make the kernel your own by appending a distinguishing extraversion.
+{{console|body=
+# get_kernel_version
+4.1.18
+# set_kernel_extraversion -muh_kernel
+# get_kernel_version
+4.1.18-muh_kernel
+}}
+}}
+{{console|body=
+ARCH=$ARCH CROSS_COMPILE=$CROSSDEV_TARGET- make zImage modules dtbs
+}}
+
+==Stage3 Configuration ==
+See http://www.funtoo.org/Funtoo_Linux_Installation_on_ARM.
+
+Let's get a stage3 and save it in a directory structure that matches the funtoo build tree and unpack it.
+
+{{console|body=
+# wget $XC_STAGE3_URL -O $XC_STAGE3
+# cd $XC_STAGE3S
+# tar xpf $XC_STAGE3
+# rm $XC_STAGE3
+}}
+
+{{warning| 
+You MUST have XC_* environment variables set. If they are not set, the following commands will modify your system files. To protect yourself from undefined environment variables, use the bash option {{console|body=# set -o nounset}}
+}}
+
+We add compiler optimizations to make.conf and modify the default fstab to match the filesystem that will be created on the bootable SD card. We will have a boot partition and a root partition. Could it be simpler?
+
+{{console|body=
+# echo "
+CHOST=$XC_STAGE3_CHOST
+CFLAGS=\"${XC_STAGE3_CFLAGS}\"
+MAKEOPTS=-j4" >> $XC_STAGE3S/etc/portage/make.conf
+# sed -i "s/\/dev\/sda1.*/\/dev\/mmcblk0p1 \/boot vfat defaults 0 2/" $XC_STAGE3S/etc/fstab 
+# sed -i "s/\/dev\/sda2.*//" $XC_STAGE3S/etc/fstab 
+# sed -i "s/\/dev\/sda3.*/\/dev\/mmcblk0p2 \/ ext4  defaults 0 1/" $XC_STAGE3S/etc/fstab 
+# sed -i "s/\#\/dev\/cdrom.*//" $XC_STAGE3S/etc/fstab
+}}
+
+Here we interactively add a root password to log in with to $XC_STAGE3S/etc/shadow.
+{{warning|Occasionally this fails due to an unescaped sed control character in the password hash. Just try it until it works, or run the password generation separately from the shadow file editing, or actually fix it. But I love a good one liner.}}
+{{console|body=
+# sed -i "s/root\:\*/root\:`(openssl passwd -1)`/" $XC_STAGE3S/etc/shadow
+}}
+
+If you want to ssh to the board as root, you need to allow it.
+{{console|body=
+# echo "PermitRootLogin yes" >> $XC_STAGE3S/etc/ssh/sshd_config
+}}
+
+Let's prevent serial consoles from spawning. If you have a need for this, you'll know what to do.
+{{console|body=
+# sed -i "s/s0\:.*/\#&/" $XC_STAGE3S/etc/inittab
+}}
+
+Let's set up the software clock. This is Raspberry Pi specific.
+{{console|body=
+# ln -sf /etc/init.d/swclock $XC_STAGE3S/etc/runlevels/boot
+# rm $XC_STAGE3S/etc/runlevels/boot/hwclock
+# mkdir -p $XC_STAGE3S/lib/rc/cache
+# touch $XC_STAGE3S/lib/rc/cache/shutdowntime
+}}
+
+Set up sshd as a default runlevel service.
+{{console|body=
+# ln -sf /etc/init.d/sshd $XC_STAGE3S/etc/runlevels/default
+# ln -sf /etc/init.d/dhcpcd $XC_STAGE3S/etc/runlevels/default
+}}
+
+== QEMU Emulation for Chrooting and Configuration ==
+We would ideally now like to chroot into our stage3, but we can't because the binaries are in another format and can't be read by our cpu. So we need to emulate (slowly) an ARM cpu to execute them. Then we can chroot and do some good setup before we move the stage3 to the board.
+
+=== Reconfigure and Emerge QEMU ===
+If necessary, adjust or create a qemu configuration and (re-)emerge it. 
+{{Note|We are altering the running system files now, to create the proper USE flags on your qemu install.}}
+{{console|body=
+# echo "
+>=media-libs/mesa-11.0.7 gles2
+app-emulation/qemu static-user" >> /etc/portage/package.use/qemu
+# echo "
+QEMU_USER_TARGETS='${QEMU_USER_TARGETS} arm'" >> /etc/portage/make.conf
+# emerge app-emulation/qemu
+}}
+
+=== Create the Static QEMU Binary ===
+Copy the static qemu binary to the $XC_STAGE3S filesystem and start the binary translation services. 
+{{console|body=
+# cp /usr/bin/qemu-arm $XC_STAGE3S/usr/bin/
+# /etc/init.d/binfmt start
+# /etc/init.d/qemu-binfmt start
+}}
+
+=== Enter the Chroot ===
+Now we copy over network info and use the magic formula to start the emulated chroot.
+{{console|body=
+# cp -L /etc/resolv.conf $XC_STAGE3S/etc/resolv.conf
+# cd $XC_STAGE3S
+# mount --rbind /dev dev
+# mount --rbind /sys sys
+# mount -t proc none proc
+# env -i HOME=/root TERM=$TERM /bin/chroot . bash -l
+# export PS1="(chroot) $PS1"
+}}
+
+
+
+
+=== Using DistCC for Distributed Cross-Compiling (HIghly Optional) ===
+
+A board like a Pi can't really be used to leverage the advantages of a  source based distribution like Funtoo unless the compilation can be outsourced. This could be done using a binary package tree, but a first step towards this will involve using DistCC to make the power of the Cross-Compiling host that was used to build its kernel, available to the board running it. This gives the board the ability to emerge packages in a reasonable amount of time, potentially caching them for other identical boards.
+
+
+==== Configuring the Compilers ====
+
+See [https://wiki.gentoo.org/wiki/Distcc/Cross-Compiling#Configuring_distcc_to_cross-compile_correctly this] document for a full explanation. We're going to do it a bit differently (and more slowly) by doing it in the chroot, so we when we write the stage3 image to board, distcc is ready to go.
+
+If you're tricky, you make make your chrooted stage3 cross compile for its native architecture using the QEMU host! 
+
+We probably need a Funtoo friendly mechanism to preserve these alterations across emerge @world. I don't know what that is. 
+
+{{console|body=
+(chroot) # emerge distcc
+(chroot) # . xcompile_variables.sh
+(chroot) # cd /usr/lib/distcc/bin
+(chroot) # rm c++ g++ gcc cc
+(chroot) # echo \
+'#!/bin/bash
+exec /usr/lib/distcc/bin/armv7a-hardfloat-linux-gnueabi-g${0:$[-2]} "$@"' > $XC_STAGE3_CHOST-wrapper
+(chroot) # chmod a+x $XC_STAGE3_CHOST-wrapper
+(chroot) # ln -s $XC_STAGE3_CHOST-wrapper cc
+(chroot) # ln -s $XC_STAGE3_CHOST-wrapper gcc
+(chroot) # ln -s $XC_STAGE3_CHOST-wrapper g++
+(chroot) # ln -s $XC_STAGE3_CHOST-wrapper c++
+}}
+
+We hook it into Portage and set the value of <N> to twice the number of total (local + remote) CPU cores + 1 and the value of <M> to the number of local CPU cores.
+
+{{console|body=
+(chroot) # echo \
+'MAKEOPTS="-j<N> -l<M>"
+FEATURES="distcc distcc-pump"' >> /etc/portage/make.conf
+}}
+
+Configure your helper hosts. Leaving out localhost is generally a good idea.
+{{console|body=
+(chroot) # distcc-config --set-hosts "<your_host>,cpp,lzo <your_other_host>,cpp,lzo"
+}}
+
+=== Set the Hostname ===
+{{console|body=
+#(chroot) set_hostname() { sed -i "s/hostname=\".*\"/hostname=\"$@\"/" /etc/conf.d/hostname; }
+#(chroot) set_hostname host0
+}}
+
+===Get the Portage Tree===
+Get the package repository so you can emerge programs.
+{{console|body=
+#(chroot) emerge --sync
+/usr/bin/git clone --depth 1 git://github.com/funtoo/ports-2012.git .
+Cloning into '.'...
+...<very cool>....
+}}
+
+===Exit the Chroot Before You Proceed ===
+When you're done, make sure you exit the chroot cleanly.
+{{console|body=
+#(chroot) exit
+# cd $XC_WORK
+# umount -lR $XC_STAGE3S/*
+}}
+
+== Installing to the Board ==
+
+Let's stage everything under $XC_STAGE3S before we move it to an SD card. Then we can easily make multiple SD card images at once if necessary. It is possible to work directly on your install media by mounting the appropriate paritions under $XC_STAGE3S. 
+
+We might also need a boot loader. That is a subject for another time, but look [http://www.librecalc.com/en/blog/realiser-une-distribution-debian-personalisee-pour-arm9/ here] and [https://wiki.gentoo.org/wiki/BeagleBone_Black#Configure_U-Boot_for_the_BBB here] and [http://processors.wiki.ti.com/index.php/AM335x_U-Boot_User%27s_Guide here], and combine them to produce bootable images for a more esoteric board like the AM335x. Eventually, automating u-boot will be required.
+
+See http://www.funtoo.org/U-booting_Funtoo if you are dying to know more about using U-Boot.
+
+The following instructions are Raspberry Pi specific are much simpler than u-boot.
+
+=== Create a Compressed Kernel Image ===
+Make the compressed kernel image, saved as kernel7.img. This is Raspberry Pi specific, with kernel.img used for rpi1 and kenel7.img used for rpi2 and rpi3.
+
+{{console|body=
+# cd $XC_KERNEL_SRC
+# scripts/mkknlimg arch/arm/boot/zImage $XC_KERNEL_IMG
+# cp $XC_KERNEL_IMG $XC_STAGE3S/boot/kernel7.img
+}}
+
+=== Deal With the DTBs ===
+In the ARM world, you need to deal with heterogeneous pairings of processor and base board. To cope with this, Device Tree Blobs were invented. See this [http://xillybus.com/tutorials/device-tree-zynq-1 tutorial].
+{{console|body=
+# cd $XC_KERNEL_SRC 
+# mkdir -p $XC_STAGE3S/boot/overlays
+# cp arch/arm/boot/dts/*.dtb $XC_STAGE3S/boot
+# cp arch/arm/boot/dts/overlays/*.dtb* $XC_STAGE3S/boot/overlays
+# cp arch/arm/boot/dts/overlays/README $XC_STAGE3S/boot/overlays
+}}
+
+=== Copy Over Modules and Firmware ===
+{{note|Up to date firmware is critical to get your board booted. If you find yourself stuck at the rainbow screen, update $XC_FIRMWARE.}}
+{{console|body=
+# ARCH=$ARCH CROSS_COMPILE=$CROSSDEV_TARGET- INSTALL_MOD_PATH=$XC_STAGE3S INSTALL_MOD_STRIP=1 make modules_install
+# cp $XC_FIRMWARE/firmware.git/boot/{bootcode.bin,fixup*.dat,start*.elf} $XC_STAGE3S/boot
+# cp -r $XC_FIRMWARE/firmware.git/hardfp/opt $XC_STATE3S/opt
+}}
+
+You must add /opt/vc/lib to LD_LIBRARY_PATH in the shell, or export LDPATH=/opt/vc/lib via a file in /etc/env.d if you want to link against these firmware libraries. This is critical if you want to do any accelerated graphics or gpu level work.
+
+{{console|body=
+# cat /etc/env.d/99vc
+LDPATH="/opt/vc/lib"
+# env-update
+# . /etc/profile
+}}
+
+If you want to try building native vc4 acceleration with media-libs/mesa you must unmask the appropriate USE flags at the profile level and VIDEO_CARDS="vc4" in make.conf.
+
+{{console|body=
+# cat /etc/portage/profile/portage.use.mask
+media-libs/mesa -video_cards_vc4 
+x11-libs/libdrm -video_cards_vc4
+}}
+
+=== Remove Unnecessary Kernel Source Links ===
+Remove links to the kernel build and the sources if you do not want to do any kernel building from the pi itself. Rebuilding the kernel from the pi is feasible if you have a good distcc setup. We don't yet.
+{{console|body=
+# rm $XC_STAGE3S/lib/modules/`get_kernel_release`/{build,source}
+}}
+
+=== Configure the Pi ===
+Create the cmdline.txt file.
+
+{{console|body=
+# echo "dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait" > $XC_STAGE3S/boot/cmdline.txt
+}}
+
+See http://www.raspberrypi.org/documentation/configuration/config-txt.md.
+
+
+Overclocking is possible.
+{{console|body=
+# echo '
+#“None” “700MHz ARM, 250MHz core, 400MHz SDRAM, 0 overvolt”
+#“Modest” “800MHz ARM, 300MHz core, 400MHz SDRAM, 0 overvolt”
+#"Medium” “900MHz ARM, 333MHz core, 450MHz SDRAM, 2 overvolt”
+#“High” “950MHz ARM, 450MHz core, 450MHz SDRAM, 6 overvolt”
+#“Turbo” “1000MHz ARM, 500MHz core, 500MHz SDRAM, 6 overvolt”
+
+arm_freq=950
+core_freq=450
+sdram_freq=450
+over_voltage=6' >> $XC_STAGE3S/boot/config.txt
+}}
+
+Very precise control of video output (and many other hardware parameters) is possible during boot.
+
+=== Create the SD card Partitions and Copy Everything Over ===
+Let's take the easy way out and make a 128M vfat boot and the rest of the disk an ext4 on /dev/<your_dev>. 
+
+{{console|body=
+# echo "
+unit: sectors
+/dev/<your_dev>1  :  start=2048,      size=262144,   type=c
+/dev/<your_dev>2  :  start=264192,                   type=83" {{!}} sfdisk /dev/<your_dev>
+# mkfs.vfat -F 32 /dev/<your_dev>1
+# mkfs.ext4 /dev/<your_dev>2
+}}
+
+When we copy everything over to the media, we ignore the /usr/portage directory. We can emerge --sync again when booted to get it back. Use rsync to win by tweaking files in $XC_STAGE3S to create a stable install and re-running the rsync command to copy over only what's been changed.
+{{console|body=
+# mkdir -p /mnt/funtoo
+# mount /dev/<your_dev>2 /mnt/funtoo
+# mkdir -p /mnt/funtoo/boot
+# mount /dev/<your_dev>1 /mnt/funtoo/boot
+# rsync -avz --exclude "usr/portage/*" $XC_STAGE3S/{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev} /mnt/funtoo
+# mkdir /mnt/funtoo/{proc,sys}
+# umount -R /mnt/funtoo
+}}
+
+You're finished! Maybe, but probably not. Or maybe! I've had great success with this method, and I hope you do too.
+
+{{tip|
+14:57 <@drobbins> my view is anyone who hangs out in #funtoo and uses Funtoo has a great opportunity to be one of the tech elite, regardless of country
+
+Sun Jan 29 2017}}
+
