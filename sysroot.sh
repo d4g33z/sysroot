@@ -40,6 +40,8 @@ sysroot_install()
         printf "error: must run as root\n"
         return 1;
     fi
+    DISTCC_REMOTE_JOBS=21
+    DISTCC_REMOTE_HOSTS="10.0.0.1,cpp,lzo" #local network
     KERNEL_WORK=/usr/src/rpi_kernel
     CFLAGS="-O2 -pipe -march=armv7-a -mtune=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard"
     CTARGET=armv7a-hardfloat-linux-gnueabi
@@ -148,8 +150,7 @@ EOF
     sysroot_mount ${SYSROOT}
 
     if prompt_input_yN "prepare the sysroot"; then
-        if [ ! -f ${SYSROOT}/prepare.sh ]; then
-            cat > ${SYSROOT}/prepare.sh << EOF
+        cat > ${SYSROOT}/prepare.sh << EOF
 #!/bin/sh
 #passwd
 #printf '/dev/mapper/rpi-root    /           ext4    defaults,noatime,errors=remount-ro,discard   0 1' >  /etc/fstab
@@ -178,8 +179,29 @@ EOF
 #rc-update add swclock boot
 #rc-update del hwclock boot
 EOF
-            chmod +x ${SYSROOT}/prepare.sh
+        if prompt_input_yN "install distcc to sysroot"; then
+            cat >> ${SYSROOT} << EOF
+echo Emerging distcc
+emerge distcc
+echo Setting distcc symlinks
+cd /usr/lib/distcc/bin
+rm c++ g++ gcc cc
+cat > ${CTARGET} << EOF2
+chmod a+x ${CTARGET}-wrapper
+ln -s ${CTARGET}-wrapper cc
+ln -s ${CTARGET}-wrapper gcc
+ln -s ${CTARGET}-wrapper g++
+ln -s ${CTARGET}-wrapper c++
+EOF2
+cat > /etc/portage/make.conf << EOF2
+MAKEOPTS = j4 -l${DISTCC_REMOTE_JOBS}
+FEATURES=\"distcc distcc-pump\"
+distcc-config --set-hosts \"${DISTCC_REMOTE_HOSTS}\"
+EOF
+
         fi
+
+        chmod +x ${SYSROOT}/prepare.sh
         chroot ${SYSROOT} /bin/sh -c "/bin/sh /prepare.sh"
         rm ${SYSROOT}/prepare.sh
     fi
