@@ -1,7 +1,16 @@
 #!/bin/sh
 
-dirname=$(dirname "$0")
-source ${dirname}/prompt_input_yN/prompt_input_yN.sh
+prompt_input_yN()
+{
+    printf "$1? [y|N] " ; shift
+    while true; do
+        read YN
+        case ${YN} in
+            [Yy]* ) printf "\n"; return 0; break;;
+            * ) printf "\n"; return 1; break;;
+        esac
+    done
+}
 
 sysroot_chroot()
 {
