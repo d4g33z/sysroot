@@ -57,7 +57,7 @@ sysroot_install()
 {
     if [ $(id -u) -ne 0 ]; then
         echo "error: must run as root"
-        return 1;
+        return 1
     fi
 
     if [ -d ${SYSROOT} ]; then
@@ -78,16 +78,69 @@ sysroot_install()
         tar xpfv ${STAGE_BALL} -C ${SYSROOT}
     fi
 
-    portage_dirs="/etc/portage/package.keywords /etc/portage/package.mask /etc/portage/package.use"
-    echo "${portage_dirs}" | tr ' ' '\n' | while read dir; do
-        if [ ! -d ${dir} ]; then
-            mv ${dir} ${dir}"_file"
-            mkdir -p ${dir}
-            mv ${dir}"_file" ${dir}
-        fi
-    done
+    mkdir -p ${KERNEL_WORK}
 
-    if prompt_input_yN "build cross-${CTARGET} toolchain"; then
+    if [ ! -d ${KERNEL_WORK}/firmware]; then
+        git clone --depth 1 git://github.com/raspberrypi/firmware/ ${KERNEL_WORK}/firmware
+    fi
+
+    if prompt_input_yN "copy firmware"; then
+        cp ${KERNEL_WORK}/firmware/boot/{bootcode.bin,fixup*.dat,start*.elf} ${SYSROOT}/boot
+        cp -r ${KERNEL_WORK}/firmware/hardfp/opt ${SYSROOT}
+    fi
+
+    if prompt_input_yN "copy non-free wifi firmware for brcm"; then
+        if [ ! -d ${KERNEL_WORK}/firmware-nonfree ]; then
+            git clone --depth 1 https://github.com/RPi-Distro/firmware-nonfree ${KERNEL_WORK}/firmware-nonfree
+        fi
+        git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull origin
+        mkdir -p ${SYSROOT}/lib/firmware/brcm
+        cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/brcmfmac43430-sdio.{bin,txt} ${SYSROOT}/lib/firmware/brcm
+    fi
+
+    if prompt_input_yN "configure sysroot"; then
+         cat > ${SYSROOT}/etc/portage/make.conf << EOF
+FEATURES=\"\$\{FEATURES\} userfetch\"
+PORTAGE_BINHOST=\"http://kantoo.org/funtoo/packages\"
+EOF
+        cat > ${SYSROOT}/boot/cmdline.txt << EOF
+dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
+EOF
+        sed -i "s/\/dev\/sda1.*/\/dev\/mmcblk0p1 \/boot vfat defaults 0 2/" ${SYSROOT}/etc/fstab 
+        sed -i "s/\/dev\/sda2.*//" ${SYSROOT}/etc/fstab 
+        sed -i "s/\/dev\/sda3.*/\/dev\/mmcblk0p2 \/ ext4  defaults 0 1/" ${SYSROOT}/etc/fstab 
+        sed -i "s/\#\/dev\/cdrom.*//" ${SYSROOT}/etc/fstab
+
+
+        echo "PermitRootLogin yes" >> ${SYSROOT}/etc/ssh/sshd_config
+
+        sed -i "s/s0\:.*/\#&/" ${SYSROOT}/etc/inittab
+
+        ln -sf /etc/init.d/swclock ${SYSROOT}/etc/runlevels/boot
+        rm ${SYSROOT}/etc/runlevels/boot/hwclock
+        mkdir -p ${SYSROOT}/lib/rc/cache
+        touch ${SYSROOT}/lib/rc/cache/shutdowntime
+
+        ln -sf /etc/init.d/sshd ${SYSROOT}/etc/runlevels/default
+        ln -sf /etc/init.d/dhcpcd ${SYSROOT}/etc/runlevels/default
+
+        echo "LDPATH=\"/opt/vc/lib\"" > ${SYSROOT}/etc/env.d/99vc
+
+    fi
+    if prompt_input_yN "pre-compiled current Raspberry Pi kernel, modules, dtbs and overlays"
+        echo ""
+    fi
+
+    if prompt_input_yN "install cross-${CTARGET} toolchain and build kernel, modules, dtbs and overlays"; then
+
+        portage_dirs="/etc/portage/package.keywords /etc/portage/package.mask /etc/portage/package.use"
+        echo "${portage_dirs}" | tr ' ' '\n' | while read dir; do
+            if [ ! -d ${dir} ]; then
+                mv ${dir} ${dir}"_file"
+                mkdir -p ${dir}
+                mv ${dir}"_file" ${dir}
+            fi
+        done
 
         if [ ! -d /var/git/overlay/crossdev]; then
             mkdir -p /var/git/overlay
@@ -122,103 +175,85 @@ EOF
             else
                 echo "sys-devel/crossdev **" > /etc/portage/package.keywords/crossdev
             fi
-            emerge crossdev
+            emerge -q crossdev
         fi
 
         crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CTARGET}
-    fi
 
-    mkdir -p ${KERNEL_WORK}
 
-    if [ ! -d ${KERNEL_WORK}/firmware]; then
-        git clone --depth 1 git://github.com/raspberrypi/firmware/ ${KERNEL_WORK}/firmware
-    fi
-
-    if [ ! -d ${KERNEL_WORK}/linux ]; then
-        git clone https://github.com/raspberrypi/linux.git ${KERNEL_WORK}/linux
-    fi
-
-    if prompt_input_yN "clean and update sources from raspberrypi/linux"; then
-        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux clean -fdx
-        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout master
-        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux fetch --all
-        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux branch -D ${RPI_KERN_BRANCH}
-        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout ${RPI_KERN_BRANCH}
-    fi
-
-    if [ -f ${SYSROOT}/etc/kernels/arm.default ]; then
-        cp ${SYSROOT}/etc/kernels/arm.default ${KERNEL_WORK}/linux/.config
-    else
-        mkdir -p ${SYSROOT}/etc/kernels
-        cp ${dirname}/arm.default ${SYSROOT}/etc/kernels
-    fi
-
-    nproc=$(nproc)
-    if [ ! -d ${KERNEL_WORK}/linux ]; then
-        echo "error: no sources found in ${KERNEL_WORK}/linux"
-        return 1
-    fi
-    cd ${KERNEL_WORK}/linux
-    if prompt_input_yN "make bcm2709_defconfig"; then
-        make -j${nproc} \
-        ARCH=arm \
-        CROSS_COMPILE=${CTARGET}- \
-        bcm2709_defconfig
-    fi
-    if prompt_input_yN "make menuconfig"; then
-        make -j${nproc} \
-        ARCH=arm \
-        CROSS_COMPILE=${CTARGET}- \
-        MENUCONFIG_COLOR=mono \
-        menuconfig
-    fi
-    if prompt_input_yN "build kernel"; then
-        make -j${nproc} \
-        ARCH=arm \
-        CROSS_COMPILE=${CTARGET}- \
-        zImage dtbs modules
-
-        make -j${nproc} \
-        ARCH=arm \
-        CROSS_COMPILE=${CTARGET}- \
-        INSTALL_MOD_PATH=${SYSROOT} \
-        modules_install
-
-        mkdir -p ${SYSROOT}/boot/overlays
-        cp arch/arm/boot/dts/*.dtb ${SYSROOT}/boot/
-        cp arch/arm/boot/dts/overlays/*.dtb* ${SYSROOT}/boot/overlays/
-        cp arch/arm/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
-        scripts/mkknlimg arch/arm/boot/zImage ${SYSROOT}/boot/kernel7.img
-
-        if prompt_input_yN "remove kernel headers and source"; then
-            rm ${SYSROOT}/lib/modules/`get_kernel_release`/{build,source}
+        if [ ! -d ${KERNEL_WORK}/linux ]; then
+            git clone https://github.com/raspberrypi/linux.git ${KERNEL_WORK}/linux
         fi
 
-        if prompt_input_yN "save new kernel config to /etc/kernels"; then
-            cp .config ${SYSROOT}/etc/kernels/arm.default
+        if prompt_input_yN "clean and update sources from raspberrypi/linux"; then
+            git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux clean -fdx
+            git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout master
+            git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux fetch --all
+            git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux branch -D ${RPI_KERN_BRANCH}
+            git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout ${RPI_KERN_BRANCH}
         fi
-    fi
 
-    cd -
-
-    if prompt_input_yN "copy firmware"; then
-        cp ${KERNEL_WORK}/firmware/boot/{bootcode.bin,fixup*.dat,start*.elf} ${SYSROOT}/boot
-        cp -r ${KERNEL_WORK}/firmware/hardfp/opt ${SYSROOT}
-    fi
-
-    if prompt_input_yN "copy non-free wifi firmware for brcm"; then
-        if [ ! -d ${KERNEL_WORK}/firmware-nonfree ]; then
-            git clone --depth 1 https://github.com/RPi-Distro/firmware-nonfree ${KERNEL_WORK}/firmware-nonfree
+        if [ -f ${SYSROOT}/etc/kernels/arm.default ]; then
+            cp ${SYSROOT}/etc/kernels/arm.default ${KERNEL_WORK}/linux/.config
+        else
+            mkdir -p ${SYSROOT}/etc/kernels
+            cp ${dirname}/arm.default ${SYSROOT}/etc/kernels
         fi
-        git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull origin
-        mkdir -p ${SYSROOT}/lib/firmware/brcm
-        cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/brcmfmac43430-sdio.{bin,txt} ${SYSROOT}/lib/firmware/brcm
+
+        nproc=$(nproc)
+
+        if [ ! -d ${KERNEL_WORK}/linux ]; then
+            echo "error: no sources found in ${KERNEL_WORK}/linux"
+            return 1
+        fi
+
+        cd ${KERNEL_WORK}/linux
+
+        if prompt_input_yN "make bcm2709_defconfig"; then
+            make -j${nproc} \
+            ARCH=arm \
+            CROSS_COMPILE=${CTARGET}- \
+            bcm2709_defconfig
+        fi
+
+        if prompt_input_yN "make menuconfig"; then
+            make -j${nproc} \
+            ARCH=arm \
+            CROSS_COMPILE=${CTARGET}- \
+            MENUCONFIG_COLOR=mono \
+            menuconfig
+        fi
+
+        if prompt_input_yN "build kernel"; then
+            make -j${nproc} \
+            ARCH=arm \
+            CROSS_COMPILE=${CTARGET}- \
+            zImage dtbs modules
+
+            make -j${nproc} \
+            ARCH=arm \
+            CROSS_COMPILE=${CTARGET}- \
+            INSTALL_MOD_PATH=${SYSROOT} \
+            modules_install
+
+            mkdir -p ${SYSROOT}/boot/overlays
+            cp arch/arm/boot/dts/*.dtb ${SYSROOT}/boot/
+            cp arch/arm/boot/dts/overlays/*.dtb* ${SYSROOT}/boot/overlays/
+            cp arch/arm/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
+            scripts/mkknlimg arch/arm/boot/zImage ${SYSROOT}/boot/kernel7.img
+
+            if prompt_input_yN "remove kernel headers and source"; then
+                rm ${SYSROOT}/lib/modules/`get_kernel_release`/{build,source}
+            fi
+
+            if prompt_input_yN "save new kernel config to /etc/kernels"; then
+                cp .config ${SYSROOT}/etc/kernels/arm.default
+            fi
+        fi
+
     fi
 
-
-
-
-    if prompt_input_yN "merge app-emulation/qemu"; then
+    if prompt_input_yN "install distcc to the sysroot"; then
 
         if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
             modprobe kvm_intel
@@ -227,73 +262,50 @@ EOF
                 modprobe kvm_amd
                 if [ $? -ne 0 ]; then
                     echo "error: can't load kvm_amd kernel module"
-                    return 1;
+                    echo "please consult https://www.funtoo.org/KVM and try again"
+                    return 1
                 fi
+            fi
+            if ["$(groups $USER | grep kvm)" = ""]; then
+                echo "add yourself to the kvm group and try again"
+                return 1
             fi
             echo "loaded kvm kernel module"
         fi
 
-        echo "app-emulation/qemu static-user" > /etc/portage/package.use/qemu
-        echo "dev-libs/libpcre static-libs" >> /etc/portage/package.use/qemu
-        echo "sys-apps/attr static-libs" >> /etc/portage/package.use/qemu
-        echo "dev-libs/glib static-libs" >> /etc/portage/package.use/qemu
-        echo "sys-libs/zlib static-libs" >> /etc/portage/package.use/qemu
-        if [ "$(grep QEMU_SOFT_MMU_TARGETS /etc/portage/make.conf)" = "" ]; then
-            echo "QEMU_SOFTMMU_TARGETS=\"arm\"" >> /etc/portage/make.conf
-        else
-            echo "QEMU_SOFTMMU_TARGETS=\"\${QEMU_SOFTMMU_TARGETS} arm\"" >> /etc/portage/make.conf
+        if [ "$(which qemu-arm 2>/dev/null)" != "/usr/bin/qemu-arm" ]; then
+
+            echo "app-emulation/qemu static-user" > /etc/portage/package.use/qemu
+            echo "dev-libs/libpcre static-libs" >> /etc/portage/package.use/qemu
+            echo "sys-apps/attr static-libs" >> /etc/portage/package.use/qemu
+            echo "dev-libs/glib static-libs" >> /etc/portage/package.use/qemu
+            echo "sys-libs/zlib static-libs" >> /etc/portage/package.use/qemu
+            if [ "$(grep QEMU_SOFT_MMU_TARGETS /etc/portage/make.conf)" = "" ]; then
+                echo "QEMU_SOFTMMU_TARGETS=\"arm\"" >> /etc/portage/make.conf
+            else
+                echo "QEMU_SOFTMMU_TARGETS=\"\${QEMU_SOFTMMU_TARGETS} arm\"" >> /etc/portage/make.conf
+            fi
+
+            if [ "$(grep QEMU_USER_TARGETS /etc/portage/make.conf)" = "" ]; then
+                echo 'QEMU_USER_TARGETS="arm"' >> /etc/portage/make.conf
+            else
+                echo 'QEMU_USER_TARGETS="${QEMU_USER_TARGETS} arm"' >> /etc/portage/make.conf
+            fi
+
+            emerge -q app-emulation/qemu
+
+            quickpkg app-emulation/qemu
+            ROOT=${SYSROOT}/ emerge -q --usepkgonly --oneshot --nodeps qemu
         fi
 
-        if [ "$(grep QEMU_USER_TARGETS /etc/portage/make.conf)" = "" ]; then
-            echo 'QEMU_USER_TARGETS="arm"' >> /etc/portage/make.conf
-        else
-            echo 'QEMU_USER_TARGETS="${QEMU_USER_TARGETS} arm"' >> /etc/portage/make.conf
-        fi
 
-        emerge app-emulation/qemu
-    fi
-
-    if prompt_input_yN "install static qemu binary on ${SYSROOT}"; then
-        quickpkg app-emulation/qemu
-        ROOT=${SYSROOT}/ emerge --usepkgonly --oneshot --nodeps qemu
-    fi
-
-    if prompt_input_yN "configure sysroot"; then
-         cat > ${SYSROOT}/etc/portage/make.conf << EOF
-FEATURES=\"\$\{FEATURES\} userfetch\"
-PORTAGE_BINHOST=\"http://kantoo.org/funtoo/packages\"
-EOF
-        cat > ${SYSROOT}/boot/cmdline.txt << EOF
-dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
-EOF
-        sed -i "s/\/dev\/sda1.*/\/dev\/mmcblk0p1 \/boot vfat defaults 0 2/" ${SYSROOT}/etc/fstab 
-        sed -i "s/\/dev\/sda2.*//" ${SYSROOT}/etc/fstab 
-        sed -i "s/\/dev\/sda3.*/\/dev\/mmcblk0p2 \/ ext4  defaults 0 1/" ${SYSROOT}/etc/fstab 
-        sed -i "s/\#\/dev\/cdrom.*//" ${SYSROOT}/etc/fstab
+        sysroot_mount ${SYSROOT}
 
 
-        echo "PermitRootLogin yes" >> ${SYSROOT}/etc/ssh/sshd_config
-
-        sed -i "s/s0\:.*/\#&/" ${SYSROOT}/etc/inittab
-
-        ln -sf /etc/init.d/swclock ${SYSROOT}/etc/runlevels/boot
-        rm ${SYSROOT}/etc/runlevels/boot/hwclock
-        mkdir -p ${SYSROOT}/lib/rc/cache
-        touch ${SYSROOT}/lib/rc/cache/shutdowntime
-
-        ln -sf /etc/init.d/sshd ${SYSROOT}/etc/runlevels/default
-        ln -sf /etc/init.d/dhcpcd ${SYSROOT}/etc/runlevels/default
-
-        echo "LDPATH=\"/opt/vc/lib\"" > ${SYSROOT}/etc/env.d/99vc
-
-    fi
-    sysroot_mount ${SYSROOT}
-
-    if prompt_input_yN "install distcc to the sysroot"; then
         cat > ${SYSROOT}/prepare.sh << EOF
 #!/bin/sh
 echo Emerging distcc
-emerge distcc
+emerge -q distcc
 echo Setting distcc symlinks
 cd /usr/lib/distcc/bin
 rm c++ g++ gcc cc
@@ -310,7 +322,6 @@ FEATURES=\"distcc distcc-pump\"
 distcc-config --set-hosts \"${DISTCC_REMOTE_HOSTS}\"
 EOF
 
-        fi
 
         chmod +x ${SYSROOT}/prepare.sh
         chroot ${SYSROOT} /bin/sh -c "/bin/sh /prepare.sh"
