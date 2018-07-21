@@ -68,18 +68,6 @@ sysroot_install()
     set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
 
 
-    if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
-        modprobe kvm_intel
-        if [ $? -ne 0 ]; then
-            printf "error: can't load kvm_intel kernel module\n"
-            modprobe kvm_amd
-            if [ $? -ne 0 ]; then
-                printf "error: can't load kvm_amd kernel module\n"
-                return 1;
-            fi
-        fi
-        printf "loaded kvm kernel module\n"
-    fi
 
     if [ -d ${SYSROOT} ]; then
         if prompt_input_yN "backup previous sysroot to ${SYSROOT}.old"; then
@@ -109,17 +97,37 @@ sysroot_install()
     done
 
     if prompt_input_yN "merge app-emulation/qemu"; then
-        printf 'app-emulation/qemu static-user' > /etc/portage/package.use/qemu
-        printf 'dev-libs/libpcre static-libs' >> /etc/portage/package.use/qemu
-        printf 'sys-apps/attr static-libs' >> /etc/portage/package.use/qemu
-        printf 'dev-libs/glib static-libs' >> /etc/portage/package.use/qemu
-        printf 'sys-libs/zlib static-libs' >> /etc/portage/package.use/qemu
-        if [ "$(grep QEMU_SOFT_MMU_TARGETS /etc/portage/make.conf)" = "" ]; then
-            printf 'QEMU_SOFTMMU_TARGETS="arm"' >> /etc/portage/make.conf
+
+        if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
+            modprobe kvm_intel
+            if [ $? -ne 0 ]; then
+                printf "error: can't load kvm_intel kernel module\n"
+                modprobe kvm_amd
+                if [ $? -ne 0 ]; then
+                    printf "error: can't load kvm_amd kernel module\n"
+                    return 1;
+                fi
+            fi
+            printf "loaded kvm kernel module\n"
         fi
+
+        printf "app-emulation/qemu static-user\n" > /etc/portage/package.use/qemu
+        printf "dev-libs/libpcre static-libs\n" >> /etc/portage/package.use/qemu
+        printf "sys-apps/attr static-libs\n" >> /etc/portage/package.use/qemu
+        printf "dev-libs/glib static-libs\n" >> /etc/portage/package.use/qemu
+        printf "sys-libs/zlib static-libs\n" >> /etc/portage/package.use/qemu
+        if [ "$(grep QEMU_SOFT_MMU_TARGETS /etc/portage/make.conf)" = "" ]; then
+            printf "QEMU_SOFTMMU_TARGETS=\"arm\"\n" >> /etc/portage/make.conf
+        else
+            printf "QEMU_SOFTMMU_TARGETS=\"\${QEMU_SOFTMMU_TARGETS} arm\"\n" >> /etc/portage/make.conf
+        fi
+
         if [ "$(grep QEMU_USER_TARGETS /etc/portage/make.conf)" = "" ]; then
             printf 'QEMU_USER_TARGETS="arm"' >> /etc/portage/make.conf
+        else
+            printf 'QEMU_USER_TARGETS="${QEMU_USER_TARGETS} arm"' >> /etc/portage/make.conf
         fi
+
         emerge app-emulation/qemu
     fi
 
