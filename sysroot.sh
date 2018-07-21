@@ -101,6 +101,93 @@ EOF
         crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CTARGET}
     fi
 
+    mkdir -p ${KERNEL_WORK}
+
+    if [ ! -d ${KERNEL_WORK}/firmware]; then
+        git clone --depth 1 git://github.com/raspberrypi/firmware/ ${KERNEL_WORK}/firmware
+    fi
+
+    if [ ! -d ${KERNEL_WORK}/linux ]; then
+        git clone https://github.com/raspberrypi/linux.git ${KERNEL_WORK}/linux
+    fi
+
+    if prompt_input_yN "clean and update sources from raspberrypi/linux"; then
+        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux clean -fdx
+        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout master
+        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux fetch --all
+        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux branch -D ${RPI_KERN_BRANCH}
+        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout ${RPI_KERN_BRANCH}
+    fi
+
+    if [ -f ${SYSROOT}/etc/kernels/arm.default ]; then
+        cp ${SYSROOT}/etc/kernels/arm.default ${KERNEL_WORK}/linux/.config
+    else
+        mkdir -p ${SYSROOT}/etc/kernels
+        cp ${dirname}/arm.default ${SYSROOT}/etc/kernels
+    fi
+
+    nproc=$(nproc)
+    if [ ! -d ${KERNEL_WORK}/linux ]; then
+        printf "error: no sources found in ${KERNEL_WORK}/linux\n"
+        return 1
+    fi
+    cd ${KERNEL_WORK}/linux
+    if prompt_input_yN "make bcm2709_defconfig"; then
+        make -j${nproc} \
+        ARCH=arm \
+        CROSS_COMPILE=${CTARGET}- \
+        bcm2709_defconfig
+    fi
+    if prompt_input_yN "make menuconfig"; then
+        make -j${nproc} \
+        ARCH=arm \
+        CROSS_COMPILE=${CTARGET}- \
+        MENUCONFIG_COLOR=mono \
+        menuconfig
+    fi
+    if prompt_input_yN "build kernel"; then
+        make -j${nproc} \
+        ARCH=arm \
+        CROSS_COMPILE=${CTARGET}- \
+        zImage dtbs modules
+
+        make -j${nproc} \
+        ARCH=arm \
+        CROSS_COMPILE=${CTARGET}- \
+        INSTALL_MOD_PATH=${SYSROOT} \
+        modules_install
+
+        mkdir -p ${SYSROOT}/boot/overlays
+        cp arch/arm/boot/dts/*.dtb ${SYSROOT}/boot/
+        cp arch/arm/boot/dts/overlays/*.dtb* ${SYSROOT}/boot/overlays/
+        cp arch/arm/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
+        scripts/mkknlimg arch/arm/boot/zImage ${SYSROOT}/boot/kernel7.img
+
+        if prompt_input_yN "remove kernel headers and source"; then
+            rm ${SYSROOT}/lib/modules/`get_kernel_release`/{build,source}
+        fi
+
+        if prompt_input_yN "save new kernel config to /etc/kernels"; then
+            cp .config ${SYSROOT}/etc/kernels/arm.default
+        fi
+    fi
+
+    cd -
+
+    if prompt_input_yN "copy firmware"; then
+        cp ${KERNEL_WORK}/firmware/boot/{bootcode.bin,fixup*.dat,start*.elf} ${SYSROOT}/boot
+        cp -r ${KERNEL_WORK}/firmware/hardfp/opt ${SYSROOT}
+    fi
+
+    if prompt_input_yN "copy non-free wifi firmware for brcm"; then
+        if [ ! -d ${KERNEL_WORK}/firmware-nonfree ]; then
+            git clone --depth 1 https://github.com/RPi-Distro/firmware-nonfree ${KERNEL_WORK}/firmware-nonfree
+        fi
+        git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull origin
+        mkdir -p ${SYSROOT}/lib/firmware/brcm
+        cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/brcmfmac43430-sdio.{bin,txt} ${SYSROOT}/lib/firmware/brcm
+    fi
+
 
 
     if [ -d ${SYSROOT} ]; then
@@ -201,38 +288,9 @@ EOF
     fi
     sysroot_mount ${SYSROOT}
 
-    if prompt_input_yN "prepare the sysroot"; then
+    if prompt_input_yN "install distcc to the sysroot"; then
         cat > ${SYSROOT}/prepare.sh << EOF
 #!/bin/sh
-#passwd
-#printf '/dev/mapper/rpi-root    /           ext4    defaults,noatime,errors=remount-ro,discard   0 1' >  /etc/fstab
-#printf '/dev/mapper/rpi-swap    none        swap    defaults,noatime,discard                     0 0' >> /etc/fstab
-#echo "=sys-kernel/genkernel-3.4.40.23 **" > /etc/portage/package.accept_keywords
-#echo ">app-crypt/gnupg-2" > /etc/portage/package.mask
-#echo "app-crypt/gnupg static" > /etc/portage/package.use
-#echo "sys-apps/util-linux static-libs" >> /etc/portage/package.use
-#echo "sys-fs/cryptsetup static-libs" >> /etc/portage/package.use
-#echo "sys-fs/lvm2 static static-libs" >> /etc/portage/package.use
-#echo "sys-libs/e2fsprogs-libs static-libs" >> /etc/portage/package.use
-#ego sync
-#sed -e 's/VERSION_GPG=\'1.4.11\'/VERSION_GPG=\'1.4.21\'/g' /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild > /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild.
-#mv /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild. /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild
-#ebuild /var/git/meta-repo/kits/core-kit/sys-kernel/genkernel/genkernel-3.4.40.23.ebuild manifest
-#emerge "=sys-kernel/genkernel-3.4.40.23" "=app-crypt/gnupg-1.4.21" app-admin/sudo app-editors/vim app-misc/tmux app-shells/zsh  net-misc/dropbear net-misc/networkmanager net-misc/ntp net-wireless/wireless-tools sys-fs/cryptsetup sys-fs/lvm2
-#sed -e 's/GPG_VER="1.4.11"/GPG_VER="1.4.21"/g' /etc/genkernel.conf > /etc/genkernel.conf.
-#mv /etc/genkernel.conf. /etc/genkernel.conf
-#git clone https://github.com/raspberrypi/linux.git /usr/src/linux
-#git clone --depth 1 git://github.com/raspberrypi/firmware/ /usr/src/firmware
-#cp -r firmware/boot/* /boot
-#cp -r firmware/modules /lib
-#rc-update add NetworkManager default
-#rc-update add ntp-client default
-#rc-update add sshd default
-#rc-update add swclock boot
-#rc-update del hwclock boot
-EOF
-        if prompt_input_yN "install distcc to sysroot"; then
-            cat >> ${SYSROOT} << EOF
 echo Emerging distcc
 emerge distcc
 echo Setting distcc symlinks
@@ -258,108 +316,6 @@ EOF
         rm ${SYSROOT}/prepare.sh
     fi
 
-
-    mkdir -p ${KERNEL_WORK}
-
-    if [ ! -d ${KERNEL_WORK}/firmware]; then
-        git clone --depth 1 git://github.com/raspberrypi/firmware/ ${KERNEL_WORK}/firmware
-    fi
-
-    if [ ! -d ${KERNEL_WORK}/linux ]; then
-        git clone https://github.com/raspberrypi/linux.git ${KERNEL_WORK}/linux
-    fi
-
-    if prompt_input_yN "clean and update sources from raspberrypi/linux"; then
-        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux clean -fdx
-        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout master
-        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux fetch --all
-        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux branch -D ${RPI_KERN_BRANCH}
-        git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout ${RPI_KERN_BRANCH}
-    fi
-
-    if [ -f ${SYSROOT}/etc/kernels/arm.default ]; then
-        cp ${SYSROOT}/etc/kernels/arm.default ${KERNEL_WORK}/linux/.config
-    else
-        mkdir -p ${SYSROOT}/etc/kernels
-        cp ${dirname}/arm.default ${SYSROOT}/etc/kernels
-    fi
-
-    nproc=$(nproc)
-    if [ ! -d ${KERNEL_WORK}/linux ]; then
-        printf "error: no sources found in ${KERNEL_WORK}/linux\n"
-        return 1
-    fi
-    cd ${KERNEL_WORK}/linux
-    if prompt_input_yN "make bcm2709_defconfig"; then
-        make -j${nproc} \
-        ARCH=arm \
-        CROSS_COMPILE=${CTARGET}- \
-        bcm2709_defconfig
-    fi
-    if prompt_input_yN "make menuconfig"; then
-        make -j${nproc} \
-        ARCH=arm \
-        CROSS_COMPILE=${CTARGET}- \
-        MENUCONFIG_COLOR=mono \
-        menuconfig
-    fi
-    if prompt_input_yN "build kernel"; then
-        make -j${nproc} \
-        ARCH=arm \
-        CROSS_COMPILE=${CTARGET}- \
-        zImage dtbs modules
-
-        make -j${nproc} \
-        ARCH=arm \
-        CROSS_COMPILE=${CTARGET}- \
-        INSTALL_MOD_PATH=${SYSROOT} \
-        modules_install
-
-        mkdir -p ${SYSROOT}/boot/overlays
-        cp arch/arm/boot/dts/*.dtb ${SYSROOT}/boot/
-        cp arch/arm/boot/dts/overlays/*.dtb* ${SYSROOT}/boot/overlays/
-        cp arch/arm/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
-        scripts/mkknlimg arch/arm/boot/zImage ${SYSROOT}/boot/kernel7.img
-
-        if prompt_input_yN "remove kernel headers and source"; then
-            rm ${SYSROOT}/lib/modules/`get_kernel_release`/{build,source}
-        fi
-
-        if prompt_input_yN "save new kernel config to /etc/kernels"; then
-            cp .config ${SYSROOT}/etc/kernels/arm.default
-        fi
-    fi
-
-    cd -
-
-    if prompt_input_yN "copy firmware"; then
-        cp ${KERNEL_WORK}/firmware/boot/{bootcode.bin,fixup*.dat,start*.elf} ${SYSROOT}/boot
-        cp -r ${KERNEL_WORK}/firmware/hardfp/opt ${SYSROOT}
-    fi
-
-    if prompt_input_yN "copy non-free wifi firmware for brcm"; then
-        if [ ! -d ${KERNEL_WORK}/firmware-nonfree ]; then
-            git clone --depth 1 https://github.com/RPi-Distro/firmware-nonfree ${KERNEL_WORK}/firmware-nonfree
-        fi
-        git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull origin
-        mkdir -p ${SYSROOT}/lib/firmware/brcm
-        cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/brcmfmac43430-sdio.{bin,txt} ${SYSROOT}/lib/firmware/brcm
-    fi
-
-#    if prompt_input_yN "build initramfs"; then
-#        rm -f ${SYSROOT}/boot/*initramfs*
-#        patch /usr/share/genkernel/defaults/initrd.scripts ${dirname}/initrd.scripts.patch
-#        patch /usr/share/genkernel/defaults/login-remote.sh ${dirname}/login-remote.sh.patch
-#        sed -e 's/#SSH="no"/SSH="YES"/g' ${SYSROOT}/etc/genkernel.conf > ${SYSROOT}/etc/genkernel.conf.
-#        mv ${SYSROOT}/etc/genkernel.conf. ${SYSROOT}/etc/genkernel.conf
-#        [ ! -f ~/.ssh/id_dropbear ] && ssh-keygen -f ~/.ssh/id_dropbear -t rsa -N ''
-#        ssh-keygen -y -f ~/.ssh/id_dropbear > ${SYSROOT}/etc/dropbear/authorized_keys
-#        chroot ${SYSROOT} /bin/sh -c "genkernel --no-mountboot --gpg --lvm --luks --disklabel --kerneldir=/usr/src/linux --kernel-config=/usr/src/linux/.config initramfs"
-#        printf "\n* Use ~/.ssh/id_dropbear to ssh into the initramfs.\n"
-#        initramfs=$(ls ${SYSROOT}/boot | grep initramfs)
-#        printf "initramfs ${initramfs} followkernel" > ${SYSROOT}/boot/config.txt
-#    fi
-
     if prompt_input_yN "wipe and randomize ${SDCARD} bits"; then
         dd if=/dev/urandom of=${SDCARD} bs=1M status=progress
     fi
@@ -377,63 +333,19 @@ EOF
     fi
 
     if prompt_input_yN "format ${SDCARD}"; then
-#        cryptsetup luksFormat ${SDCARD}2
-#        cryptsetup luksOpen ${SDCARD}2 rpi
-#
-#        pvcreate /dev/mapper/rpi
-#        vgcreate rpi /dev/mapper/rpi
-#        lvcreate --size 2GB --name swap rpi
-#        lvcreate --extents 95%FREE --name root rpi
-#
-#        mkswap -L "swap" /dev/mapper/rpi-swap
-#        mkfs.ext4 /dev/mapper/rpi-root
         mkfs.ext4 ${SDCARD}2
         mkfs.vfat ${SDCARD}1
-#
-#        export GPG_TTY=$(tty)
-#        dd if=/dev/urandom bs=1024 count=512 | gpg --symmetric --cipher-algo AES256 --output ~/.ssh/rpi.gpg
-#        echo RELOADAGENT | gpg-connect-agent
-#        gpg --decrypt ~/.ssh/rpi.gpg > rpi
-#        cryptsetup luksAddKey ${SDCARD}2 rpi
-#        shred -u rpi
     fi
 
-#    if [ ! -e ~/.ssh/id_rpi ]; then
-#        ssh-keygen -f ~/.ssh/id_rpi -t rsa -N ''
-#    fi
-#    if [ ! -d ${SYSROOT}/root/.ssh ]; then
-#        mkdir -p ${SYSROOT}/root/.ssh
-#        ssh-keygen -y -f ~/.ssh/id_rpi > ${SYSROOT}/root/.ssh/authorized_keys
-#    fi
 
     if prompt_input_yN "deploy ${SYSROOT} to ${SDCARD}"; then
-#        if [ "$(cryptsetup status rpi | grep 'is active')" = "" ]; then
-#            cryptsetup luksOpen ${SDCARD}2 rpi
-#            if [ $? -ne 0 ]; then
-#                printf "error: could not open ${SDCARD}2 luks partition"
-#                return 1
-#            fi
-#            vgchange --available y rpi
-#            if [ $? -ne 0 ]; then
-#                printf "error: could not make volumes available"
-#            fi
-#        fi
 
         mkdir -p /mnt/rpi
-#        mount /dev/mapper/rpi-root /mnt/rpi
         mount ${SDCARD}2 /mnt/rpi
         mkdir -p /mnt/rpi/boot
         mount ${SDCARD}1 /mnt/rpi/boot
         umount -Rl ${SYSROOT}/{proc,sys,dev}
 
-#        SDCARD_BOOT_UUID=$(blkid -s UUID -o value ${SDCARD}1)
-#        if [ "$(grep boot /etc/fstab)" = "" ]; then
-#            printf "UUID=${SDCARD_BOOT_UUID}          /boot           vfat            noauto,noatime  2 2" >> ${SYSROOT}/etc/fstab
-#        fi
-#
-#        SDCARD_ROOT_UUID=$(blkid -s UUID -o value ${SDCARD}2)
-#        printf "ro crypt_root=UUID=${SDCARD_ROOT_UUID} dolvm real_root=/dev/mapper/rpi-root root=/dev/mapper/rpi-root rootfstype=ext4" > ${SYSROOT}/boot/cmdline.txt
-#
         if prompt_input_yN "use --delete on rsync for ${SDCARD} files"; then
             RSYNC_DELETE=--delete
         fi
@@ -447,33 +359,7 @@ EOF
 
         umount /mnt/rpi/boot
         umount /mnt/rpi
-#        vgchange --available n rpi
-#        cryptsetup luksClose rpi
     fi
 
-#    if [ "$(grep 'Host dropbear' ~/.ssh/config || grep 'Host rpi' ~/.ssh/config)" = "" ]; then
-#        if prompt_input_yN "add dropbear and rpi hosts to ~/.ssh/config"; then
-#            mkdir -p ~/.ssh
-#            printf "what is the hostname? "
-#            read ip
-#            cat >> ~/.ssh/config << EOF
-#Host dropbear
-#    Hostname ${ip}
-#    UserKnownHostsFile ~/.ssh/known_hosts.dropbear
-#    IdentityFile ~/.ssh/id_dropbear
-#    User root
-#EOF
-#            cat >> ~/.ssh/config << EOF
-#Host rpi
-#    Hostname ${ip}
-#    UserKnownHostsFile ~/.ssh/known_hosts.rpi
-#    IdentityFile ~/.ssh/id_rpi
-#    User root
-#EOF
-#        fi
-#    fi
-
-#    printf "use this to unlock the root:\n"
-#    printf "cat ~/.ssh/rpi.gpg | ssh dropbear post root; ssh dropbear\n\n"
 }
 
