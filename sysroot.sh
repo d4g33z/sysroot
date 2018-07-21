@@ -6,6 +6,9 @@ get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET
 get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET}- make kernelversion;)}
 set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
 
+SDCARD=/dev/${SDCARD_DEV}
+SYSROOT=${SYSROOT_WORK}/${CTARGET}
+STAGE_BALL=/tmp/stage3-latest.tar.xz
 
 prompt_input_yN()
 {
