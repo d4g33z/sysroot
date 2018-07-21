@@ -25,7 +25,7 @@ prompt_input_yN()
 sysroot_chroot()
 {
     if [ $# -lt 1 ]; then
-        printf "usage: sysroot-chroot path\n"
+        echo "usage: sysroot-chroot path"
         return 1
     fi
     sysroot_mount $1 || return 1
@@ -38,7 +38,7 @@ sysroot_chroot()
 sysroot_mount()
 {
     if [ $# -lt 1 ]; then
-        printf "usage: sysroot-mount path\n"
+        echo "usage: sysroot-mount path"
         return 1
     fi
     if [ "$(mount | grep $1)" != "" ]; then
@@ -114,13 +114,13 @@ EOF
 
         if prompt_input_yN "merge crossdev"; then
             if [ "$(grep crossdev-99999999 /etc/portage/package.unmask)" = "" ]; then
-                printf "=sys-devel/crossdev-99999999\n" >> /etc/portage/package.unmask
+                echo "=sys-devel/crossdev-99999999" >> /etc/portage/package.unmask
             fi
             if [ ! -d /etc/portage/package.keywords ]; then
-                printf "error: convert /etc/portage/package.keywords to a directory\n"
+                echo "error: convert /etc/portage/package.keywords to a directory"
                 return 1
             else
-                printf "sys-devel/crossdev **\n" > /etc/portage/package.keywords/crossdev
+                echo "sys-devel/crossdev **" > /etc/portage/package.keywords/crossdev
             fi
             emerge crossdev
         fi
@@ -155,7 +155,7 @@ EOF
 
     nproc=$(nproc)
     if [ ! -d ${KERNEL_WORK}/linux ]; then
-        printf "error: no sources found in ${KERNEL_WORK}/linux\n"
+        echo "error: no sources found in ${KERNEL_WORK}/linux"
         return 1
     fi
     cd ${KERNEL_WORK}/linux
@@ -217,63 +217,37 @@ EOF
 
 
 
-    if [ -d ${SYSROOT} ]; then
-        if prompt_input_yN "backup previous sysroot to ${SYSROOT}.old"; then
-            mv ${SYSROOT} ${SYSROOT}.old
-            mkdir -p ${SYSROOT}
-        fi
-    fi
-
-    if prompt_input_yN "download stage3-latest for ARM architecture"; then
-        mkdir -p ${HOME}/Downloads
-        [ -f ${STAGE_BALL} ] && mv ${STAGE_BALL} ${STAGE_BALL}.bak
-        wget ${STAGE_URL} -O ${STAGE_BALL}
-    fi
-
-    if prompt_input_yN "extract ${STAGE_BALL} in ${SYSROOT}"; then
-        mkdir -p ${SYSROOT}
-        tar xpfv ${STAGE_BALL} -C ${SYSROOT}
-    fi
-
-    portage_dirs="/etc/portage/package.keywords /etc/portage/package.mask /etc/portage/package.use"
-    printf "${portage_dirs}\n" | tr ' ' '\n' | while read dir; do
-        if [ ! -d ${dir} ]; then
-            mv ${dir} ${dir}"_file"
-            mkdir -p ${dir}
-            mv ${dir}"_file" ${dir}
-        fi
-    done
 
     if prompt_input_yN "merge app-emulation/qemu"; then
 
         if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
             modprobe kvm_intel
             if [ $? -ne 0 ]; then
-                printf "error: can't load kvm_intel kernel module\n"
+                echo "error: can't load kvm_intel kernel module"
                 modprobe kvm_amd
                 if [ $? -ne 0 ]; then
-                    printf "error: can't load kvm_amd kernel module\n"
+                    echo "error: can't load kvm_amd kernel module"
                     return 1;
                 fi
             fi
-            printf "loaded kvm kernel module\n"
+            echo "loaded kvm kernel module"
         fi
 
-        printf "app-emulation/qemu static-user\n" > /etc/portage/package.use/qemu
-        printf "dev-libs/libpcre static-libs\n" >> /etc/portage/package.use/qemu
-        printf "sys-apps/attr static-libs\n" >> /etc/portage/package.use/qemu
-        printf "dev-libs/glib static-libs\n" >> /etc/portage/package.use/qemu
-        printf "sys-libs/zlib static-libs\n" >> /etc/portage/package.use/qemu
+        echo "app-emulation/qemu static-user" > /etc/portage/package.use/qemu
+        echo "dev-libs/libpcre static-libs" >> /etc/portage/package.use/qemu
+        echo "sys-apps/attr static-libs" >> /etc/portage/package.use/qemu
+        echo "dev-libs/glib static-libs" >> /etc/portage/package.use/qemu
+        echo "sys-libs/zlib static-libs" >> /etc/portage/package.use/qemu
         if [ "$(grep QEMU_SOFT_MMU_TARGETS /etc/portage/make.conf)" = "" ]; then
-            printf "QEMU_SOFTMMU_TARGETS=\"arm\"\n" >> /etc/portage/make.conf
+            echo "QEMU_SOFTMMU_TARGETS=\"arm\"" >> /etc/portage/make.conf
         else
-            printf "QEMU_SOFTMMU_TARGETS=\"\${QEMU_SOFTMMU_TARGETS} arm\"\n" >> /etc/portage/make.conf
+            echo "QEMU_SOFTMMU_TARGETS=\"\${QEMU_SOFTMMU_TARGETS} arm\"" >> /etc/portage/make.conf
         fi
 
         if [ "$(grep QEMU_USER_TARGETS /etc/portage/make.conf)" = "" ]; then
-            printf 'QEMU_USER_TARGETS="arm"' >> /etc/portage/make.conf
+            echo 'QEMU_USER_TARGETS="arm"' >> /etc/portage/make.conf
         else
-            printf 'QEMU_USER_TARGETS="${QEMU_USER_TARGETS} arm"' >> /etc/portage/make.conf
+            echo 'QEMU_USER_TARGETS="${QEMU_USER_TARGETS} arm"' >> /etc/portage/make.conf
         fi
 
         emerge app-emulation/qemu
