@@ -1,17 +1,11 @@
 #!/bin/sh
 
-KERNEL_WORK=/usr/src/rpi_kernel
-CFLAGS="-O2 -pipe -march=armv7-a -mtune=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard"
-CTARGET=armv7a-hardfloat-linux-gnueabi
-#SDCARD_DEV=mmcblk0p
-SDCARD_DEV=sdb
-SDCARD=/dev/${SDCARD_DEV}
-STAGE_BALL=${HOME}/Downloads/stage3-latest.tar.xz
-STAGE_URL="http://ftp.osuosl.org/pub/funtoo/funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz"
-SYSROOT=/home/sysroots/${CTARGET}
-RPI_KERN_BRANCH=rpi-4.9.y
-DISTCC_REMOTE_JOBS=21
-DISTCC_REMOTE_HOSTS="10.0.0.1,cpp,lzo"
+source config.sh
+
+get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET}- make kernelrelease;)}
+get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET}- make kernelversion;)}
+set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
+
 
 prompt_input_yN()
 {
@@ -63,9 +57,46 @@ sysroot_install()
         return 1;
     fi
 
-    get_kernel_release() { (cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET}- make kernelrelease;) }
-    get_kernel_version() { (cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET}- make kernelversion;) }
-    set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
+    if prompt_input_yN "build cross-${CTARGET} toolchain"; then
+
+        if [ ! -d /var/git/overlay/crossdev]; then
+            mkdir -p /var/git/overlay
+            cd /var/git/overlay
+            git clone  https://github.com/funtoo/skeleton-overlay.git crossdev
+            rm -rf /var/git/overlay/crossdev/.git
+            echo "crossdev" > /var/git/overlay/crossdev/profiles/repo_name
+        fi
+
+        if [ ! -d /var/git/overlay/crossdev/.git]; then
+            cd /var/git/overlay/crossdev
+            git init
+            git remote add origin git://github.com/gentoo/gentoo.git
+            git config core.sparseCheckout true
+            echo "sys-devel/gcc" > .git/info/sparse-checkout
+            git pull --depth=1 origin master
+            cat > /etc/portage/repos.conf/crossdev << EOF
+[crossdev]
+location = /var/git/overlay/crossdev
+auto-sync = no
+priority = 10
+EOF
+        fi
+
+        if prompt_input_yN "merge crossdev"; then
+            if [ "$(grep crossdev-99999999 /etc/portage/package.unmask)" = "" ]; then
+                printf "=sys-devel/crossdev-99999999\n" >> /etc/portage/package.unmask
+            fi
+            if [ ! -d /etc/portage/package.keywords ]; then
+                printf "error: convert /etc/portage/package.keywords to a directory\n"
+                return 1
+            else
+                printf "sys-devel/crossdev **\n" > /etc/portage/package.keywords/crossdev
+            fi
+            emerge crossdev
+        fi
+
+        crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CTARGET}
+    fi
 
 
 
@@ -224,43 +255,6 @@ EOF
         rm ${SYSROOT}/prepare.sh
     fi
 
-    if prompt_input_yN "merge crossdev"; then
-        if [ "$(grep crossdev-99999999 /etc/portage/package.unmask)" = "" ]; then
-            printf "=sys-devel/crossdev-99999999\n" >> /etc/portage/package.unmask
-        fi
-        if [ ! -d /etc/portage/package.keywords ]; then
-            printf "error: convert /etc/portage/package.keywords to a directory\n"
-            return 1
-        else
-            printf "sys-devel/crossdev **\n" > /etc/portage/package.keywords/crossdev
-        fi
-        emerge crossdev
-    fi
-
-    if prompt_input_yN "build cross-${CTARGET} toolchain"; then
-        if [ ! -d /var/git/overlay/crossdev]; then
-            mkdir -p /var/git/overlay
-            cd /var/git/overlay
-            git clone  https://github.com/funtoo/skeleton-overlay.git crossdev
-            rm -rf /var/git/overlay/crossdev/.git
-            echo "crossdev" > /var/git/overlay/crossdev/profiles/repo_name
-        fi
-        if [ ! -d /var/git/overlay/crossdev/.git]; then
-            cd /var/git/overlay/crossdev
-            git init
-            git remote add origin git://github.com/gentoo/gentoo.git
-            git config core.sparseCheckout true
-            echo "sys-devel/gcc" > .git/info/sparse-checkout
-            git pull --depth=1 origin master
-            cat > /etc/portage/repos.conf/crossdev << EOF
-[crossdev]
-location = /var/git/overlay/crossdev
-auto-sync = no
-priority = 10
-EOF
-        fi
-        crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CTARGET}
-    fi
 
     mkdir -p ${KERNEL_WORK}
 
