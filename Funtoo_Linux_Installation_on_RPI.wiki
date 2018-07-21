@@ -9,6 +9,25 @@ Development code is available on [https://github.com/d4g33z/sysroot.git github].
 
 == The Cross Compiling Environment == 
 
+=== Local Environment Variables ===
+
+{{file|name=config.sh|lang=bash|desc=Set your install configuration variables|body=
+KERNEL_WORK=/usr/src/rpi_kernel
+RPI_KERN_BRANCH=rpi-4.9.y
+
+SYSROOT_WORK=/usr/src/sysroots
+STAGE_URL="http://ftp.osuosl.org/pub/funtoo/funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz"
+CTARGET=armv7a-hardfloat-linux-gnueabi
+CFLAGS="-O2 -pipe -march=armv7-a -mtune=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard"
+
+#SDCARD_DEV=mmcblk0p
+SDCARD_DEV=sdb
+
+#optional
+DISTCC_REMOTE_JOBS=21
+DISTCC_REMOTE_HOSTS="10.0.0.1,cpp,lzo"
+}}
+
 === Using a Local Overlay with Crossdev ===
 {{Package|sys-devel/crossdev}} is a wonderful script for managing cross-compiling environments on Gentoo, but it is incompatible with Funtoo's improved gcc ebuilds. There is incomplete documentation of a pure Funtoo [https://bugs.funtoo.org/browse/FL-3787 solution], but there has been no follow up on a complete implementation.
 
@@ -47,197 +66,6 @@ Install crossdev.
 # echo "sys-devel/crossdev **" >> /etc/portage/package.keywords/crossdev
 # echo "=sys-devel/crossdev-99999999" >> /etc/portage/package.unmask/crossdev
 # emerge crossdev
-}}
-
-=== Managing Environment Variables ===
-Let's try to manage all the files needed with some simple environment variables we construct from user input. All exported variables and functions are part of an XC_ namespace for tab completion.
-
-{{file|name=xcompile_variables.sh|lang=bash|desc=define variables|body=
-# Start User Input
-#-------------------------------------------
-# Where do we isolate all our work?
-# This directory must exist and be created explicitly by you.
-XC_WORK= <xc_work>
-
-if ! [[ -d $XC_WORK ]]; 
-    echo "The directory $XC_WORK does not exist."
-    exit
-fi
-
-#How do we distinguish this build?
-XC_LINUX_PREFIX= <xc_linux_prefix>
-
-# NOTE: if we need gcc-4.9 as well! How do we store that data?
-# use arguments to crossdev script
-
-# Which crossdev target and architecture to build the kenel?
-# Note, this not necessarily what built the stage3
-#e.g.
-CROSSDEV_TARGET=arm-linux-gnueabihf
-ARCH=arm
-
-#which stage3 do we need and what CFLAGS does it use?
-#e.g.
-STAGE3=funtoo-current/arm-32bit/raspi3
-STAGE3_NAME=stage3-latest.tar.xz
-STAGE3_CHOST=armv7a-hardfloat-linux-gnueabi
-STAGE3_CFLAGS="-O2 -pipe -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard"
-
-# End User Input
-#-------------------------------------------
-#-------------------------------------------
-# Some functions
-XC_get_kernel_release() { (cd $XC_KERNEL_SRC ; ARCH=$ARCH CROSS_COMPILE=$CROSSDEV_TARGET- make kernelrelease;) }
-XC_get_kernel_version() { (cd $XC_KERNEL_SRC ; ARCH=$ARCH CROSS_COMPILE=$CROSSDEV_TARGET- make kernelversion;) }
-XC_set_kernel_extraversion() {(cd $XC_KERNEL_SRC; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
-#-------------------------------------------
-CONFIGS=$XC_WORK/configs/$XC_LINUX_PREFIX
-KERNELS=$XC_WORK/kernels/$XC_LINUX_PREFIX
-PATCHES=$XC_WORK/patches/$XC_LINUX_PREFIX
-FIRMWARE=$XC_WORK/firmware/$XC_LINUX_PREFIX
-LINUX=$XC_WORK/linux/$XC_LINUX_PREFIX
-TOOLS=$XC_WORK/tools/$XC_LINUX_PREFIX
-UBOOTS=$XC_WORK/uboots/$XC_LINUX_PREFIX
-IMAGES=$XC_WORK/images/$XC_LINUX_PREFIX
-STAGE3S=$XC_WORK/stage3s/$XC_LINUX_PREFIX/
-
-#-------------------------------------------
-XC_PATCHES=$PATCHES
-XC_FIRMWARE=$FIRMWARE
-XC_TOOLS=$TOOLS
-XC_KERNEL_SRC=$LINUX/linux
-#-------------------------------------------
-#set our kernel sources and config file
-XC_KERNEL_OLDCONFIG=NONE
-~
-#Which kernel version are we building?
-if [ -d $XC_KERNEL_SRC ]; then
-    KERNEL_VERSION=`(cd $XC_KERNEL_SRC/ && ARCH=$ARCH CROSS_COMPILE=$CROSSDEV- make kernelversion 2>/dev/null )`
-else
-    KERNEL_VERSION=unknown
-fi~
-~
-XC_KERNEL_IMG=$KERNELS/kernel-$KERNEL_VERSION.img
-XC_KERNEL_CONFIG=$CONFIGS/$KERNEL_VERSION.kconf
-#-------------------------------------------
-#funtoo stage3s. It is possible to mount your install media at $XC_STAGE3S.
-#XC_STAGE3S=$STAGE3S
-XC_STAGE3S=$STAGE3S/$STAGE3
-XC_STAGE3=$XC_STAGE3S/$STAGE3_NAME
-XC_STAGE3_URL=http://ftp.osuosl.org/pub/funtoo/$STAGE3/$STAGE3_NAME
-
-
-#-------------------------------------------
-#u-boot
-UBOOT=u-boot-latest.tar.bz2
-UBOOT_URL=ftp://ftp.denx.de/pub/u-boot/$UBOOT
-XC_UBOOT=$UBOOTS/u-boot #unpacked sources
-~
-#-------------------------------------------
-#u-boot
-UBOOT=u-boot-latest.tar.bz2
-UBOOT_URL=ftp://ftp.denx.de/pub/u-boot/$UBOOT
-XC_UBOOT=$UBOOTS/u-boot #unpacked sources
-~
-#-------------------------------------------
-#sdcard image creation
-XC_IMAGE=$IMAGES/`echo $STAGE3  {{!}} tr / -`.img
-~
-XC_VARS=(ARCH   CROSSDEV_TARGET     XC_STAGE3_CHOST     XC_STAGE3_CFLAGS    XC_LINUX_PREFIX     XC_WORK     XC_KERNEL_SRC   XC_KERNEL_CONFIG    XC_KERNEL_IMG       XC_TOOLS    XC_PATCHES      XC_FIRMWARE     XC_STAGE3_URL   XC_STAGE3    XC_STAGE3S     XC_IMAGE)
-~
-XC_VALS=($ARCH  $CROSSDEV_TARGET    $STAGE3_CHOST       "$STAGE3_CFLAGS"    $XC_LINUX_PREFIX    $XC_WORK    $XC_KERNEL_SRC  $XC_KERNEL_CONFIG   $XC_KERNEL_IMG      $XC_TOOLS   $XC_PATCHES     $XC_FIRMWARE    $XC_STAGE3_URL  $XC_STAGE3   $XC_STAGE3S    "$XC_IMAGE")
-~
-echo "Your current cross compilation environment:"
-echo "=============================="
-for ((i=0; i< ${#XC_VARS[@]}; i++)); do
-        echo ${XC_VARS[$i]}; echo ${XC_VALS[$i]};
-            echo "==============================";
-done;
-echo "=============================="
-echo "Your current kernel configs for $XC_LINUX_PREFIX type builds:"
-for file in $(dirname $XC_KERNEL_CONFIG)/*; do
-    if [[ $file == *.kconf ]]; then
-        echo -n "Use $(basename $file) as config (y/n)? "
-        read answer
-        if echo "$answer" {{!}} grep -iq "^y" ;then
-            echo "Setting XC_KERNEL_OLDCONFIG to $file"
-            XC_KERNEL_OLDCONFIG=$file
-            break
-        else
-            echo
-        fi
-    fi
-done;
-~
-echo "=============================="
-echo XC_KERNEL_OLDCONFIG=$XC_KERNEL_OLDCONFIG
-echo "=============================="
-echo "If XC_KERNEL_OLDCONFIG is not set, \
-you must create a new .config yourself or use a def_config target"
-
-}}
-
-
-{{console|body=
-# . xcompile_varables.sh
-
-Your current cross compilation environment:
-==============================
-ARCH
-arm
-==============================
-CROSSDEV_TARGET
-arm-linux-gnueabihf
-==============================
-XC_STAGE3_CHOST
-armv7a-hardfloat-linux-gnueabi
-==============================
-XC_STAGE3_CFLAGS
--O2 -pipe -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard
-==============================
-XC_LINUX_PREFIX
-$XC_LINUX_PREFIX
-==============================
-XC_WORK
-$XC_WORK
-==============================
-XC_KERNEL_SRC
-$XC_WORK/linux/$XC_LINUX_PREFIX/linux
-==============================
-XC_KERNEL_CONFIG
-$XC_WORK/configs/$XC_LINUX_PREFIX/unknown.kconf
-==============================
-XC_KERNEL_IMG
-$XC_WORK/kernels/$XC_LINUX_PREFIX/kernel-unknown.img
-==============================
-XC_TOOLS
-$XC_WORK/tools/$XC_LINUX_PREFIX
-==============================
-XC_PATCHES
-$XC_WORK/patches/$XC_LINUX_PREFIX
-==============================
-XC_FIRMWARE
-$XC_WORK/firmware/$XC_LINUX_PREFIX
-==============================
-XC_STAGE3_URL
-http://ftp.osuosl.org/pub/funtoo/funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz
-==============================
-XC_STAGE3
-$XC_WORK/stage3s/$XC_LINUX_PREFIX//funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz
-==============================
-XC_STAGE3S
-$XC_WORK/stage3s/$XC_LINUX_PREFIX//funtoo-current/arm-32bit/raspi3
-==============================
-XC_IMAGE
-$XC_WORK/images/$XC_LINUX_PREFIX/funtoo-current-arm-32bit-raspi3.img
-==============================
-==============================
-Your current kernel configs for $XC_LINUX_PREFIX type builds:
-==============================
-XC_KERNEL_OLDCONFIG=NONE
-==============================
-If XC_KERNEL_OLDCONFIG is not set, you must create a new .config yourself or use a def_config target
-
 }}
 
 == Retrieving Necessary Source Trees ==
