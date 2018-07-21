@@ -1,5 +1,5 @@
 KERNEL_WORK=/usr/src/rpi_kernel
-RPI_KERN_BRANCH=rpi-4.9.y
+RPI_KERN_BRANCH=rpi-4.14.y
 
 SYSROOT_WORK=/usr/src/sysroots
 STAGE_URL="http://ftp.osuosl.org/pub/funtoo/funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz"
