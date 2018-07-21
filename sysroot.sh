@@ -56,9 +56,36 @@ sysroot_mount()
 sysroot_install()
 {
     if [ $(id -u) -ne 0 ]; then
-        printf "error: must run as root\n"
+        echo "error: must run as root"
         return 1;
     fi
+
+    if [ -d ${SYSROOT} ]; then
+        if prompt_input_yN "backup previous sysroot to ${SYSROOT}.old"; then
+            mv ${SYSROOT} ${SYSROOT}.old
+            mkdir -p ${SYSROOT}
+        fi
+    fi
+
+    if prompt_input_yN "download stage3-latest for ARM architecture"; then
+        mkdir -p ${HOME}/Downloads
+        [ -f ${STAGE_BALL} ] && mv ${STAGE_BALL} ${STAGE_BALL}.bak
+        wget ${STAGE_URL} -O ${STAGE_BALL}
+    fi
+
+    if prompt_input_yN "extract ${STAGE_BALL} in ${SYSROOT}"; then
+        mkdir -p ${SYSROOT}
+        tar xpfv ${STAGE_BALL} -C ${SYSROOT}
+    fi
+
+    portage_dirs="/etc/portage/package.keywords /etc/portage/package.mask /etc/portage/package.use"
+    echo "${portage_dirs}" | tr ' ' '\n' | while read dir; do
+        if [ ! -d ${dir} ]; then
+            mv ${dir} ${dir}"_file"
+            mkdir -p ${dir}
+            mv ${dir}"_file" ${dir}
+        fi
+    done
 
     if prompt_input_yN "build cross-${CTARGET} toolchain"; then
 
