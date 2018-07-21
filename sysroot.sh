@@ -226,13 +226,13 @@ EOF
 
     if prompt_input_yN "merge crossdev"; then
         if [ "$(grep crossdev-99999999 /etc/portage/package.unmask)" = "" ]; then
-            printf "=sys-devel/crossdev-99999999" >> /etc/portage/package.unmask
+            printf "=sys-devel/crossdev-99999999\n" >> /etc/portage/package.unmask
         fi
         if [ ! -d /etc/portage/package.keywords ]; then
-            printf 'error: convert /etc/portage/package.keywords to a directory'
+            printf "error: convert /etc/portage/package.keywords to a directory\n"
             return 1
         else
-            printf "sys-devel/crossdev **" > /etc/portage/package.keywords/crossdev
+            printf "sys-devel/crossdev **\n" > /etc/portage/package.keywords/crossdev
         fi
         emerge crossdev
     fi
