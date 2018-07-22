@@ -1,19 +1,31 @@
+= Install Funtoo Linux on a Raspberry Pi =
+
 == Introduction == 
 This is the updated quick and dirty HOWTO covering the automation of cross-compiling, kernel building, emulation and booting of arbitrary architectures, but specifically focused on the cross compiling the Raspeberry Pi linux kernel sources for target arm-linux-gnueabihf and booting it on Raspberry Pi boards with a funtoo stage 3. It's so quick and dirty you probably won't be able replicate the results here on your first try. But it is possible!
 
 This is an update of [[Crossdev_Automation]], reflecting the changes needed to accomodate the new kits structure of Funtoo, and to clean up the scripting used for automation. The document will remain available for reference purposes.
+== Installation Overview ==
+[[#Create Your Installation Settings]]
+[[#Install the Stage 3 Tarball]]
+[[#Install the Firmware]]
+[[#Configure Your System]]
+[[#Install Binary Kernel, Modules, and dtbs or Cross-Compile from Source]]
+[[#Optionally Install Distcc via QEMU Chroot]]
+[[#Partition and Format an SDCard]]
+[[#Deploy Installation to SDCard]]
+
 
 == Get the Bash Script ==
 
 Development code is available on [https://github.com/d4g33z/sysroot.git github]. The structure of the file {{c|sysroot.sh}} should roughly correspond to the information contained here.
 
-== The Cross Compiling Environment == 
+=== Create Your Installation Settings ===
 
-=== Local Environment Variables ===
+Confguration your installation:
 
 {{file|name=config.sh|lang=bash|desc=Set your install configuration variables|body=
 KERNEL_WORK=/usr/src/rpi_kernel
-RPI_KERN_BRANCH=rpi-4.9.y
+RPI_KERN_BRANCH=rpi-4.14.y
 
 SYSROOT_WORK=/usr/src/sysroots
 STAGE_URL="http://ftp.osuosl.org/pub/funtoo/funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz"
@@ -28,7 +40,18 @@ DISTCC_REMOTE_JOBS=21
 DISTCC_REMOTE_HOSTS="10.0.0.1,cpp,lzo"
 }}
 
-=== Using a Local Overlay with Crossdev ===
+
+
+=== Install the Stage 3 Tarball ===
+=== Install the Firmware ===
+=== Configure Your System ===
+=== Install Binary Kernel, Modules, and dtbs or Cross-Compile from Source ===
+=== Optionally Install Distcc via QEMU Chroot ===
+=== Partition and Format an SDCard === 
+=== Deploy Installation to SDCard ===
+
+
+==== Using a Local Overlay with Crossdev= ===
 {{Package|sys-devel/crossdev}} is a wonderful script for managing cross-compiling environments on Gentoo, but it is incompatible with Funtoo's improved gcc ebuilds. There is incomplete documentation of a pure Funtoo [https://bugs.funtoo.org/browse/FL-3787 solution], but there has been no follow up on a complete implementation.
 
 A simple solution is to create a [[Local_Overlay|local overlay]] named "crossdev", store gentoo ebuilds and patches in it, and use a crossdev command line switch to direct it to search the overlay for the appropriate ebuilds. This has the advantage of isolating all gentoo files and resulting binaries in a single directory. 

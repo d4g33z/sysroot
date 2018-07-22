@@ -10,49 +10,6 @@ SDCARD=/dev/${SDCARD_DEV}
 SYSROOT=${SYSROOT_WORK}/${CTARGET}
 STAGE_BALL=/tmp/stage3-latest.tar.xz
 
-prompt_input_yN()
-{
-    printf "$1? [y|N] " ; shift
-    while true; do
-        read YN
-        case ${YN} in
-            [Yy]* ) printf "\n"; return 0; break;;
-            * ) printf "\n"; return 1; break;;
-        esac
-    done
-}
-
-sysroot_chroot()
-{
-    if [ $# -lt 1 ]; then
-        echo "usage: sysroot-chroot path"
-        return 1
-    fi
-    sysroot_mount $1 || return 1
-    chroot $1 /bin/sh --login
-    umount $1/dev
-    umount $1/proc
-    umount $1/sys
-}
-
-sysroot_mount()
-{
-    if [ $# -lt 1 ]; then
-        echo "usage: sysroot-mount path"
-        return 1
-    fi
-    if [ "$(mount | grep $1)" != "" ]; then
-        return 0
-    fi
-    if [ "$(/etc/init.d/qemu-binfmt status | grep started)" = "" ]; then
-        /etc/init.d/qemu-binfmt start
-    fi
-    cp /etc/resolv.conf $1/etc/resolv.conf
-    mkdir -p $1/dev  && mount --bind /dev $1/dev
-    mkdir -p $1/proc && mount --bind /proc $1/proc
-    mkdir -p $1/sys  && mount --bind /sys $1/sys
-}
-
 sysroot_install()
 {
     if [ $(id -u) -ne 0 ]; then
@@ -380,4 +337,48 @@ EOF
     fi
 
 }
+
+prompt_input_yN()
+{
+    printf "$1? [y|N] " ; shift
+    while true; do
+        read YN
+        case ${YN} in
+            [Yy]* ) printf "\n"; return 0; break;;
+            * ) printf "\n"; return 1; break;;
+        esac
+    done
+}
+
+sysroot_chroot()
+{
+    if [ $# -lt 1 ]; then
+        echo "usage: sysroot-chroot path"
+        return 1
+    fi
+    sysroot_mount $1 || return 1
+    chroot $1 /bin/sh --login
+    umount $1/dev
+    umount $1/proc
+    umount $1/sys
+}
+
+sysroot_mount()
+{
+    if [ $# -lt 1 ]; then
+        echo "usage: sysroot-mount path"
+        return 1
+    fi
+    if [ "$(mount | grep $1)" != "" ]; then
+        return 0
+    fi
+    if [ "$(/etc/init.d/qemu-binfmt status | grep started)" = "" ]; then
+        /etc/init.d/qemu-binfmt start
+    fi
+    cp /etc/resolv.conf $1/etc/resolv.conf
+    mkdir -p $1/dev  && mount --bind /dev $1/dev
+    mkdir -p $1/proc && mount --bind /proc $1/proc
+    mkdir -p $1/sys  && mount --bind /sys $1/sys
+}
+
 
