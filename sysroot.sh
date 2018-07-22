@@ -6,16 +6,18 @@ get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET
 get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET}- make kernelversion;)}
 set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
 
-SDCARD=/dev/${SDCARD_DEV}
-SYSROOT=${SYSROOT_WORK}/${CTARGET}
-STAGE_BALL=/tmp/stage3-latest.tar.xz
-
 sysroot_install()
 {
     if [ $(id -u) -ne 0 ]; then
         echo "error: must run as root"
         return 1
     fi
+
+    ################################################################################
+    # Install the Stage 3 Tarball
+
+    SYSROOT=${SYSROOT_WORK}/${CTARGET}
+    STAGE_BALL=/tmp/stage3-latest.tar.xz
 
     if [ -d ${SYSROOT} ]; then
         if prompt_input_yN "backup previous sysroot to ${SYSROOT}.old"; then
@@ -34,6 +36,9 @@ sysroot_install()
         mkdir -p ${SYSROOT}
         tar xpfv ${STAGE_BALL} -C ${SYSROOT}
     fi
+
+    ################################################################################
+    # Install the Firmware
 
     mkdir -p ${KERNEL_WORK}
 
@@ -55,7 +60,10 @@ sysroot_install()
         cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/brcmfmac43430-sdio.{bin,txt} ${SYSROOT}/lib/firmware/brcm
     fi
 
-    if prompt_input_yN "configure sysroot"; then
+    ################################################################################
+    # Configure Your System
+
+    if prompt_input_yN "configure your system"; then
          cat > ${SYSROOT}/etc/portage/make.conf << EOF
 FEATURES=\"\$\{FEATURES\} userfetch\"
 PORTAGE_BINHOST=\"http://kantoo.org/funtoo/packages\"
@@ -85,6 +93,9 @@ EOF
 
     fi
 
+    ################################################################################
+    # Install Binary Kernel, Modules and dtbs
+
     if prompt_input_yN "install pre-compiled current Raspberry Pi kernel, modules, dtbs and overlays"; then
 
         mkdir -p ${SYSROOT}/boot/overlays
@@ -94,6 +105,10 @@ EOF
         cp ${KERNEL_WORK}/firmware/boot/kernel7.img  ${SYSROOT}/boot/
 
     else 
+
+    ################################################################################
+    # Cross-compile Kernel, Modules and dtbs from Source
+
         if prompt_input_yN "install cross-${CTARGET} toolchain and build kernel, modules, dtbs and overlays"; then
 
             portage_dirs="/etc/portage/package.keywords /etc/portage/package.mask /etc/portage/package.use"
@@ -218,6 +233,9 @@ EOF
         fi
     fi
 
+    ################################################################################
+    # Optionally Install Distcc via QEMU Chroot
+
     if prompt_input_yN "install distcc to the sysroot"; then
 
         if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
@@ -292,6 +310,9 @@ EOF
 
     fi
 
+    ################################################################################
+    # Parition and Format an SDCard
+
     if prompt_input_yN "wipe and randomize ${SDCARD} bits"; then
         dd if=/dev/urandom of=${SDCARD} bs=1M status=progress
     fi
@@ -313,7 +334,11 @@ EOF
         mkfs.vfat ${SDCARD}1
     fi
 
+    ################################################################################
+    # Deploy Installation to SDCard
 
+    SDCARD=/dev/${SDCARD_DEV}
+    
     if prompt_input_yN "deploy ${SYSROOT} to ${SDCARD}"; then
 
         mkdir -p /mnt/rpi

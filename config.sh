@@ -1,3 +1,6 @@
+################################################################################
+# Create Your Installation Settings
+
 KERNEL_WORK=/usr/src/rpi_kernel
 RPI_KERN_BRANCH=rpi-4.14.y
 
