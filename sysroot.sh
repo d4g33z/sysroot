@@ -27,7 +27,6 @@ sysroot_install()
     fi
 
     if prompt_input_yN "download stage3-latest for ARM architecture"; then
-        mkdir -p ${HOME}/Downloads
         [ -f ${STAGE_BALL} ] && mv ${STAGE_BALL} ${STAGE_BALL}.bak
         wget ${STAGE_URL} -O ${STAGE_BALL}
     fi
