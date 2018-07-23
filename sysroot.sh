@@ -115,40 +115,54 @@ EOF
     fi
 
     ################################################################################
-    # Install Binary Kernel, Modules and dtbs
+    # Install Binary Kernel, Modules, and dtbs or Cross-Compile from Source 
 
-    if prompt_input_yN "install pre-compiled current Raspberry Pi kernel, modules, dtbs and overlays"; then
+    if prompt_input_yN "install pre-compiled binary Raspberry Pi kernel, modules, dtbs and overlays"; then
 
+        ################################################################################
+        # Install Binary Kernel, Modules and dtbs
         mkdir -p ${SYSROOT}/boot/overlays
         cp ${KERNEL_WORK}/firmware/boot/dts/*.dtb ${SYSROOT}/boot/
         cp ${KERNEL_WORK}/firmware/boot/dts/overlays/*.dtb* ${SYSROOT}/boot/overlays/
         cp ${KERNEL_WORK}/firmware/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
         cp ${KERNEL_WORK}/firmware/boot/kernel7.img  ${SYSROOT}/boot/
-
-    else 
+    fi
 
     ################################################################################
     # Cross-compile Kernel, Modules and dtbs from Source
+    if prompt_input_yN "build and install from source Raspberry Pi kernel, modules, dtbs and overlays"; then
 
-        if prompt_input_yN "install cross-${CHOST} toolchain and build kernel, modules, dtbs and overlays"; then
-
+        ################################################################################
+        # Install Crossdev
+        if prompt_input_yN "install Crossdev"; then
+    
+            # Check for directory structure in 
             portage_dirs="/etc/portage/package.keywords /etc/portage/package.mask /etc/portage/package.use"
-            echo "${portage_dirs}" | tr ' ' '\n' | while read dir; do
+            echo "${SYSROOT}/${portage_dirs}" | tr ' ' '\n' | while read dir; do
                 if [ ! -d ${dir} ]; then
                     mv ${dir} ${dir}"_file"
                     mkdir -p ${dir}
                     mv ${dir}"_file" ${dir}
                 fi
             done
-
+            
+            # Make a Local Overlay
             if [ ! -d /var/git/overlay/crossdev]; then
                 mkdir -p /var/git/overlay
                 cd /var/git/overlay
                 git clone  https://github.com/funtoo/skeleton-overlay.git crossdev
                 rm -rf /var/git/overlay/crossdev/.git
                 echo "crossdev" > /var/git/overlay/crossdev/profiles/repo_name
+                cat > /etc/portage/repos.conf/crossdev << EOF
+[crossdev]
+location = /var/git/overlay/crossdev
+auto-sync = no
+priority = 10
+EOF
+ 
             fi
 
+            #Sparse Checkout Gentoo GCC Builds
             if [ ! -d /var/git/overlay/crossdev/.git]; then
                 cd /var/git/overlay/crossdev
                 git init
@@ -156,15 +170,10 @@ EOF
                 git config core.sparseCheckout true
                 echo "sys-devel/gcc" > .git/info/sparse-checkout
                 git pull --depth=1 origin master
-                cat > /etc/portage/repos.conf/crossdev << EOF
-[crossdev]
-location = /var/git/overlay/crossdev
-auto-sync = no
-priority = 10
-EOF
             fi
-
-            if prompt_input_yN "merge crossdev"; then
+            
+            #Unmask and Emerge Crossdev
+            if prompt_input_yN "emerge crossdev"; then
                 if [ "$(grep crossdev-99999999 /etc/portage/package.unmask)" = "" ]; then
                     echo "=sys-devel/crossdev-99999999" >> /etc/portage/package.unmask
                 fi
@@ -176,75 +185,78 @@ EOF
                 fi
                 emerge -q crossdev
             fi
+        fi
 
+        ################################################################################
+        # Install Cross Compilation Tool Chain
+        if prompt_input_yN "install cross-${CHOST} toolchain"; then
             crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CHOST}
 
+        fi
 
+        if prompt_input_yN "Retrieve Raspberry Pi Kernel Sources"; then
             if [ ! -d ${KERNEL_WORK}/linux ]; then
                 git clone https://github.com/raspberrypi/linux.git ${KERNEL_WORK}/linux
             fi
-            
-            if prompt_input_yN "clean and update sources from raspberrypi/linux"; then
-                git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux clean -fdx
-                git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout master
-                git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux fetch --all
-                git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux branch -D ${RPI_KERN_BRANCH}
-                git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout ${RPI_KERN_BRANCH}
-            fi
+        fi 
+        if prompt_input_yN "clean and update sources from raspberrypi/linux"; then
+            git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux clean -fdx
+            git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout master
+            git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux fetch --all
+            git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux branch -D ${RPI_KERN_BRANCH}
+            git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout ${RPI_KERN_BRANCH}
+        fi
 
 
             nproc=$(nproc)
 
-            if [ ! -d ${KERNEL_WORK}/linux ]; then
-                echo "error: no sources found in ${KERNEL_WORK}/linux"
-                return 1
+        if [ ! -d ${KERNEL_WORK}/linux ]; then
+            echo "error: no sources found in ${KERNEL_WORK}/linux"
+            return 1
+        fi
+
+        cd ${KERNEL_WORK}/linux
+
+        if prompt_input_yN "make bcm2709_defconfig"; then
+            make -j${nproc} \
+            ARCH=arm \
+            CROSS_COMPILE=${CHOST}- \
+            bcm2709_defconfig
+        fi
+
+        if prompt_input_yN "make menuconfig"; then
+            make -j${nproc} \
+            ARCH=arm \
+            CROSS_COMPILE=${CHOST}- \
+            MENUCONFIG_COLOR=mono \
+            menuconfig
+        fi
+
+        if prompt_input_yN "build kernel"; then
+            make -j${nproc} \
+            ARCH=arm \
+            CROSS_COMPILE=${CHOST}- \
+            zImage dtbs modules
+
+            make -j${nproc} \
+            ARCH=arm \
+            CROSS_COMPILE=${CHOST}- \
+            INSTALL_MOD_PATH=${SYSROOT} \
+            modules_install
+
+            mkdir -p ${SYSROOT}/boot/overlays
+            cp arch/arm/boot/dts/*.dtb ${SYSROOT}/boot/
+            cp arch/arm/boot/dts/overlays/*.dtb* ${SYSROOT}/boot/overlays/
+            cp arch/arm/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
+            scripts/mkknlimg arch/arm/boot/zImage ${SYSROOT}/boot/kernel7.img
+
+            if prompt_input_yN "remove kernel headers and source"; then
+                rm ${SYSROOT}/lib/modules/`get_kernel_release`/{build,source}
             fi
 
-            cd ${KERNEL_WORK}/linux
-
-            if prompt_input_yN "make bcm2709_defconfig"; then
-                make -j${nproc} \
-                ARCH=arm \
-                CROSS_COMPILE=${CHOST}- \
-                bcm2709_defconfig
+            if prompt_input_yN "save new kernel config to /etc/kernels"; then
+                cp .config ${SYSROOT}/etc/kernels/arm.default
             fi
-
-            if prompt_input_yN "make menuconfig"; then
-                make -j${nproc} \
-                ARCH=arm \
-                CROSS_COMPILE=${CHOST}- \
-                MENUCONFIG_COLOR=mono \
-                menuconfig
-            fi
-
-            if prompt_input_yN "build kernel"; then
-                make -j${nproc} \
-                ARCH=arm \
-                CROSS_COMPILE=${CHOST}- \
-                zImage dtbs modules
-
-                make -j${nproc} \
-                ARCH=arm \
-                CROSS_COMPILE=${CHOST}- \
-                INSTALL_MOD_PATH=${SYSROOT} \
-                modules_install
-
-                mkdir -p ${SYSROOT}/boot/overlays
-                cp arch/arm/boot/dts/*.dtb ${SYSROOT}/boot/
-                cp arch/arm/boot/dts/overlays/*.dtb* ${SYSROOT}/boot/overlays/
-                cp arch/arm/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
-                scripts/mkknlimg arch/arm/boot/zImage ${SYSROOT}/boot/kernel7.img
-
-                if prompt_input_yN "remove kernel headers and source"; then
-                    rm ${SYSROOT}/lib/modules/`get_kernel_release`/{build,source}
-                fi
-
-                if prompt_input_yN "save new kernel config to /etc/kernels"; then
-                    cp .config ${SYSROOT}/etc/kernels/arm.default
-                fi
-            fi
-        else
-            echo "are you sure you have a kernel installed to ${SYSROOT}"
         fi
     fi
 
