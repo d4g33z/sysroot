@@ -170,12 +170,6 @@ EOF
                 git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout ${RPI_KERN_BRANCH}
             fi
 
-            if [ -f ${SYSROOT}/etc/kernels/arm.default ]; then
-                cp ${SYSROOT}/etc/kernels/arm.default ${KERNEL_WORK}/linux/.config
-            else
-                mkdir -p ${SYSROOT}/etc/kernels
-                cp ${dirname}/arm.default ${SYSROOT}/etc/kernels
-            fi
 
             nproc=$(nproc)
 
