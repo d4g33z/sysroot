@@ -1,18 +1,18 @@
 = Install Funtoo Linux on a Raspberry Pi =
 
-== Introduction == 
+== Introduction ==
 This is the updated quick and dirty HOWTO covering the automation of cross-compiling, kernel building, emulation and booting of arbitrary architectures, but specifically focused on the cross compiling the Raspeberry Pi linux kernel sources for target arm-linux-gnueabihf and booting it on Raspberry Pi boards with a funtoo stage 3. It's so quick and dirty you probably won't be able replicate the results here on your first try. But it is possible!
 
 This is an update of [[Crossdev_Automation]], reflecting the changes needed to accomodate the new kits structure of Funtoo, and to clean up the scripting used for automation. The document will remain available for reference purposes.
 == Installation Overview ==
-[[#Create Your Installation Settings]]
-[[#Install the Stage 3 Tarball]]
-[[#Install the Firmware]]
-[[#Configure Your System]]
-[[#Install Binary Kernel, Modules, and dtbs or Cross-Compile from Source]]
-[[#Optionally Install Distcc via QEMU Chroot]]
-[[#Partition and Format an SDCard]]
-[[#Deploy Installation to SDCard]]
+#[[Create Your Installation Settings]]
+#[[Install the Stage 3 Tarball]]
+#[[Install the Firmware]]
+#[[Configure Your System]]
+#[[Install Binary Kernel, Modules, and dtbs or Cross-Compile from Source]]
+#[[Optionally Install Distcc via QEMU Chroot]]
+#[[Partition and Format an SDCard]]
+#[[Deploy Installation to SDCard]]
 
 
 == Get the Bash Script ==
@@ -47,14 +47,13 @@ DISTCC_REMOTE_HOSTS="10.0.0.1,cpp,lzo"
 === Install the Firmware ===
 === Configure Your System ===
 === Install Binary Kernel, Modules, and dtbs or Cross-Compile from Source ===
-
 ==== Retrieving Necessary Source Trees ====
-==== Using a Local Overlay with Crossdev= ===
+==== Using a Local Overlay with Crossdev ====
 {{Package|sys-devel/crossdev}} is a wonderful script for managing cross-compiling environments on Gentoo, but it is incompatible with Funtoo's improved gcc ebuilds. There is incomplete documentation of a pure Funtoo [https://bugs.funtoo.org/browse/FL-3787 solution], but there has been no follow up on a complete implementation.
 
-A simple solution is to create a [[Local_Overlay|local overlay]] named "crossdev", store gentoo ebuilds and patches in it, and use a crossdev command line switch to direct it to search the overlay for the appropriate ebuilds. This has the advantage of isolating all gentoo files and resulting binaries in a single directory. 
+A simple solution is to create a [[Local_Overlay|local overlay]] named "crossdev", store gentoo ebuilds and patches in it, and use a crossdev command line switch to direct it to search the overlay for the appropriate ebuilds. This has the advantage of isolating all gentoo files and resulting binaries in a single directory.~
 
-Let's follow the directions from [[Local_Overlay]], and remove the .git subdirectory. 
+Let's follow the directions from [[Local_Overlay]], and remove the .git subdirectory.~
 {{console|body=
 ###i## mkdir /var/git/overlay
 ###i## cd /var/git/overlay
@@ -91,8 +90,6 @@ Install crossdev.
 
 
 === Optionally Install Distcc via QEMU Chroot ===
-=== Partition and Format an SDCard === 
+=== Partition and Format an SDCard ===
 === Deploy Installation to SDCard ===
-
-
 
