@@ -127,7 +127,17 @@ If you want this, set it up yourself.
 ##i## dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
 ##i## EOF
 }}
-=== Install Binary Kernel, Modules, and dtbs or Cross-Compile from Source ===
+=== Install Binary Kernel, Modules and dtbs ===
+{{console|body=
+###i## mkdir -p ${SYSROOT}/boot/overlays
+###i## cp ${KERNEL_WORK}/firmware/boot/dts/*.dtb ${SYSROOT}/boot/
+###i## cp ${KERNEL_WORK}/firmware/boot/dts/overlays/*.dtb* ${SYSROOT}/boot/overlays/
+###i## cp ${KERNEL_WORK}/firmware/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
+###i## cp ${KERNEL_WORK}/firmware/boot/kernel7.img  ${SYSROOT}/boot/
+}}
+=== Cross-compile Kernel, Modules and dtbs from Source ===
+==== Install Crossdev ====
+==== Install Cross Compilation Tool Chain
 ==== Retrieving Necessary Source Trees ====
 ==== Using a Local Overlay with Crossdev ====
 {{Package|sys-devel/crossdev}} is a wonderful script for managing cross-compiling environments on Gentoo, but it is incompatible with Funtoo's improved gcc ebuilds. There is incomplete documentation of a pure Funtoo [https://bugs.funtoo.org/browse/FL-3787 solution], but there has been no follow up on a complete implementation.
