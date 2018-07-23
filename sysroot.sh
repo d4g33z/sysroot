@@ -67,32 +67,50 @@ sysroot_install()
     # Configure Your System
 
     if prompt_input_yN "configure your system"; then
-         cat > ${SYSROOT}/etc/portage/make.conf << EOF
-FEATURES=\"\$\{FEATURES\} userfetch\"
-PORTAGE_BINHOST=\"http://kantoo.org/funtoo/packages\"
-EOF
-        cat > ${SYSROOT}/boot/cmdline.txt << EOF
-dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
-EOF
+
+        ################################################################################
+        #Set Up Mount Points
         sed -i "s/\/dev\/sda1.*/\/dev\/mmcblk0p1 \/boot vfat defaults 0 2/" ${SYSROOT}/etc/fstab 
         sed -i "s/\/dev\/sda2.*//" ${SYSROOT}/etc/fstab 
         sed -i "s/\/dev\/sda3.*/\/dev\/mmcblk0p2 \/ ext4  defaults 0 1/" ${SYSROOT}/etc/fstab 
         sed -i "s/\#\/dev\/cdrom.*//" ${SYSROOT}/etc/fstab
 
+        ################################################################################
+        # Set Up Root Password
+        echo "Please enter a root password for the Raspberry Pi"
+        sed -i "s/root\:\*/root\:`(openssl passwd -1)`/" $SYSROOT/etc/shadow
 
+        ################################################################################
+        # Set Up Networking
+        ln -sf /etc/init.d/dhcpcd ${SYSROOT}/etc/runlevels/default
+
+        ################################################################################
+        # Set Up SSH Access
         echo "PermitRootLogin yes" >> ${SYSROOT}/etc/ssh/sshd_config
+        ln -sf /etc/init.d/sshd ${SYSROOT}/etc/runlevels/default
 
-        sed -i "s/s0\:.*/\#&/" ${SYSROOT}/etc/inittab
-
+        ################################################################################
+        # Set Up Software Clock
         ln -sf /etc/init.d/swclock ${SYSROOT}/etc/runlevels/boot
         rm ${SYSROOT}/etc/runlevels/boot/hwclock
         mkdir -p ${SYSROOT}/lib/rc/cache
         touch ${SYSROOT}/lib/rc/cache/shutdowntime
 
-        ln -sf /etc/init.d/sshd ${SYSROOT}/etc/runlevels/default
-        ln -sf /etc/init.d/dhcpcd ${SYSROOT}/etc/runlevels/default
 
+        ################################################################################
+        # Disable Serial Console Access
+        sed -i "s/s0\:.*/\#&/" ${SYSROOT}/etc/inittab
+
+
+        ################################################################################
+        # Link to Accelerated Video Libraries
         echo "LDPATH=\"/opt/vc/lib\"" > ${SYSROOT}/etc/env.d/99vc
+
+        ################################################################################
+        # Configure the Boot Parameters
+        cat > ${SYSROOT}/boot/cmdline.txt << EOF
+dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
+EOF
 
     fi
 
