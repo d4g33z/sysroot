@@ -21,7 +21,7 @@ sysroot_install()
     # Install the Stage 3 Tarball
 
     SYSROOT=${SYSROOT_WORK}/${CHOST}
-    STAGE3_ARCHIVE=/tmp/stage3-latest.tar.xz
+    STAGE3_ARCHIVE="/tmp/$(basename %STAGE3_URL)"
 
     if [ -d ${SYSROOT} ]; then
         if prompt_input_yN "backup previous sysroot to ${SYSROOT}.old"; then
@@ -32,7 +32,7 @@ sysroot_install()
 
     if prompt_input_yN "download stage3-latest for ARM architecture"; then
         [ -f ${STAGE3_ARCHIVE} ] && mv ${STAGE3_ARCHIVE} ${STAGE3_ARCHIVE}.bak
-        wget ${STAGE_URL} -O ${STAGE3_ARCHIVE}
+        wget ${STAGE3_URL} -O ${STAGE3_ARCHIVE}
     fi
 
     if prompt_input_yN "extract ${STAGE3_ARCHIVE} in ${SYSROOT}"; then
