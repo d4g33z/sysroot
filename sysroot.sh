@@ -1,6 +1,7 @@
 #!/bin/sh
 
-source config.sh
+CWD="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+source ${CWD}/config
 
 get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET}- make kernelrelease;)}
 get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET}- make kernelversion;)}
