@@ -3,7 +3,9 @@
 == Introduction ==
 This is the updated quick and dirty HOWTO covering the automation of cross-compiling, kernel building, emulation and booting of arbitrary architectures, but specifically focused on the cross compiling the Raspeberry Pi linux kernel sources for target arm-linux-gnueabihf and booting it on Raspberry Pi boards with a funtoo stage 3. It's so quick and dirty you probably won't be able replicate the results here on your first try. But it is possible!
 
-This is an update of [[Crossdev_Automation]], reflecting the changes needed to accomodate the new kits structure of Funtoo, and to clean up the scripting used for automation. The document will remain available for reference purposes.
+This is an update of [[Crossdev_Automation]], reflecting the changes needed to accomodate the new kits structure of Funtoo, and to clean up the scripting used for automation. The document will remain available for reference purposes. 
+
+[[Funtoo_Linux_Installation_on_ARM]] is an important document as well.
 
 == Installation Overview ==
 #[[Create Your Installation Settings]]
@@ -72,6 +74,59 @@ Make your work directory and clone the official firmware repo into it. Copy the 
 }}
 
 === Configure Your System ===
+Here, we attempt to encapsulate the instructions from [[Funtoo_Linux_Installation_on_ARM]]. There are two ways to do this. Here we alter files and symlinks in {{c|$SYSROOT/etc}} directly. We could also chroot into $SYSROOT using QEMU as described below to install {{Package|sys-devl/distcc}}, use {{c|rc-update}} directly. However the method used here doesn't depend upon a functioning QEMU chroot, which can be slow and tricky to implement for beginners.
+
+==== Set Up Mount Points  ===
+Alter {{c|$SYSROOT/etc/fstab}} as follows. We remove the swap (for now), and alter the storage device name and parition file types. We also remove the {{c|/dev/cdrom}} device.
+
+{{file|name=$SYSROOT/etc/fstab|body=
+ /dev/mmcblk0p1		/boot		vfat		noauto,noatime	1 2
+ /dev/mmcblk0p2		/		ext4		noatime		0 1
+}}
+
+We can use the following {{c|sed}} code.
+{{console|body=
+###i## sed -i "s/\/dev\/sda1.*/\/dev\/mmcblk0p1 \/boot vfat defaults 0 2/" ${SYSROOT}/etc/fstab
+###i## sed -i "s/\/dev\/sda2.*//" ${SYSROOT}/etc/fstab
+###i## sed -i "s/\/dev\/sda3.*/\/dev\/mmcblk0p2 \/ ext4  defaults 0 1/" ${SYSROOT}/etc/fstab
+###i## sed -i "s/\#\/dev\/cdrom.*//" ${SYSROOT}/etc/fstab
+}}
+
+==== Set Up Root Password ====
+{{console|body=
+###i## sed -i "s/root\:\*/root\:`(openssl passwd -1)`/" $SYSROOT/etc/shadow}}
+}}
+==== Set Up Networking ===
+{{console|body=
+###i## ln -sf /etc/init.d/dhcpcd ${SYSROOT}/etc/runlevels/default
+}}
+==== Set Up SSH Access ====
+{{console|body=
+###i## echo "PermitRootLogin yes" >> ${SYSROOT}/etc/ssh/sshd_config
+###i## ln -sf /etc/init.d/sshd ${SYSROOT}/etc/runlevels/default 
+}}
+==== Set Up the Software Clock ====
+{{console|body=
+###i## ln -sf /etc/init.d/swclock ${SYSROOT}/etc/runlevels/boot
+###i## rm ${SYSROOT}/etc/runlevels/boot/hwclock
+###i## mkdir -p ${SYSROOT}/lib/rc/cache
+###i## touch ${SYSROOT}/lib/rc/cache/shutdowntime
+}}
+==== Disable Serial Console Access ====
+If you want this, set it up yourself.
+{{console|body=
+###i## sed -i "s/s0\:.*/\#&/" ${SYSROOT}/etc/inittab
+}}
+==== Link to Accelerated Video Libraries ====
+{{console|body=
+###i## echo "LDPATH=\"/opt/vc/lib\"" > ${SYSROOT}/etc/env.d/99vc
+}}
+==== Configure the Boot Parameters ====
+{{console|body=
+###i## cat > ${SYSROOT}/boot/cmdline.txt << EOF
+dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
+EOF
+}}
 === Install Binary Kernel, Modules, and dtbs or Cross-Compile from Source ===
 ==== Retrieving Necessary Source Trees ====
 ==== Using a Local Overlay with Crossdev ====
