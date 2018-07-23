@@ -1,9 +1,13 @@
 #!/bin/sh
 
-source config.sh
+CWD="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
-get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET}- make kernelrelease;)}
-get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CTARGET}- make kernelversion;)}
+################################################################################
+# Load Your Installation Settings
+source ${CWD}/config
+
+get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelrelease;)}
+get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelversion;)}
 set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
 
 sysroot_install()
@@ -16,7 +20,7 @@ sysroot_install()
     ################################################################################
     # Install the Stage 3 Tarball
 
-    SYSROOT=${SYSROOT_WORK}/${CTARGET}
+    SYSROOT=${SYSROOT_WORK}/${CHOST}
     STAGE_BALL=/tmp/stage3-latest.tar.xz
 
     if [ -d ${SYSROOT} ]; then
@@ -108,7 +112,7 @@ EOF
     ################################################################################
     # Cross-compile Kernel, Modules and dtbs from Source
 
-        if prompt_input_yN "install cross-${CTARGET} toolchain and build kernel, modules, dtbs and overlays"; then
+        if prompt_input_yN "install cross-${CHOST} toolchain and build kernel, modules, dtbs and overlays"; then
 
             portage_dirs="/etc/portage/package.keywords /etc/portage/package.mask /etc/portage/package.use"
             echo "${portage_dirs}" | tr ' ' '\n' | while read dir; do
@@ -155,7 +159,7 @@ EOF
                 emerge -q crossdev
             fi
 
-            crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CTARGET}
+            crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CHOST}
 
 
             if [ ! -d ${KERNEL_WORK}/linux ]; then
@@ -183,14 +187,14 @@ EOF
             if prompt_input_yN "make bcm2709_defconfig"; then
                 make -j${nproc} \
                 ARCH=arm \
-                CROSS_COMPILE=${CTARGET}- \
+                CROSS_COMPILE=${CHOST}- \
                 bcm2709_defconfig
             fi
 
             if prompt_input_yN "make menuconfig"; then
                 make -j${nproc} \
                 ARCH=arm \
-                CROSS_COMPILE=${CTARGET}- \
+                CROSS_COMPILE=${CHOST}- \
                 MENUCONFIG_COLOR=mono \
                 menuconfig
             fi
@@ -198,12 +202,12 @@ EOF
             if prompt_input_yN "build kernel"; then
                 make -j${nproc} \
                 ARCH=arm \
-                CROSS_COMPILE=${CTARGET}- \
+                CROSS_COMPILE=${CHOST}- \
                 zImage dtbs modules
 
                 make -j${nproc} \
                 ARCH=arm \
-                CROSS_COMPILE=${CTARGET}- \
+                CROSS_COMPILE=${CHOST}- \
                 INSTALL_MOD_PATH=${SYSROOT} \
                 modules_install
 
@@ -282,12 +286,12 @@ emerge -q distcc
 echo Setting distcc symlinks
 cd /usr/lib/distcc/bin
 rm c++ g++ gcc cc
-cat > ${CTARGET} << EOF2
-chmod a+x ${CTARGET}-wrapper
-ln -s ${CTARGET}-wrapper cc
-ln -s ${CTARGET}-wrapper gcc
-ln -s ${CTARGET}-wrapper g++
-ln -s ${CTARGET}-wrapper c++
+cat > ${CHOST} << EOF2
+chmod a+x ${CHOST}-wrapper
+ln -s ${CHOST}-wrapper cc
+ln -s ${CHOST}-wrapper gcc
+ln -s ${CHOST}-wrapper g++
+ln -s ${CHOST}-wrapper c++
 EOF2
 cat > /etc/portage/make.conf << EOF2
 MAKEOPTS = j4 -l${DISTCC_REMOTE_JOBS}

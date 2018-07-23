@@ -29,7 +29,7 @@ RPI_KERN_BRANCH=rpi-4.14.y
 
 SYSROOT_WORK=/usr/src/sysroots
 STAGE_URL="http://ftp.osuosl.org/pub/funtoo/funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz"
-CTARGET=armv7a-hardfloat-linux-gnueabi
+CHOST=armv7a-hardfloat-linux-gnueabi
 CFLAGS="-O2 -pipe -march=armv7-a -mtune=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard"
 
 #SDCARD_DEV=mmcblk0p
@@ -43,6 +43,9 @@ DISTCC_REMOTE_HOSTS="10.0.0.1,cpp,lzo"
 
 
 === Install the Stage 3 Tarball ===
+
+Download the current Funtoo stage 3 build appropriate for your Raspberry Pi device. Check the [[Subarches#arm32]] page, to see the version available for versions 1,2 and 3 of the Pi. Here we download the version for version 3 by setting the STAGE_URL variable in our configuration file.
+
 
 === Install the Firmware ===
 === Configure Your System ===
