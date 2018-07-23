@@ -6,7 +6,7 @@ RPI_KERN_BRANCH=rpi-4.14.y
 
 SYSROOT_WORK=/usr/src/sysroots
 STAGE_URL="http://ftp.osuosl.org/pub/funtoo/funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz"
-CTARGET=armv7a-hardfloat-linux-gnueabi
+CHOST=armv7a-hardfloat-linux-gnueabi
 CFLAGS="-O2 -pipe -march=armv7-a -mtune=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard"
 
 #SDCARD_DEV=mmcblk0p
