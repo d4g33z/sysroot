@@ -4,6 +4,7 @@
 This is the updated quick and dirty HOWTO covering the automation of cross-compiling, kernel building, emulation and booting of arbitrary architectures, but specifically focused on the cross compiling the Raspeberry Pi linux kernel sources for target arm-linux-gnueabihf and booting it on Raspberry Pi boards with a funtoo stage 3. It's so quick and dirty you probably won't be able replicate the results here on your first try. But it is possible!
 
 This is an update of [[Crossdev_Automation]], reflecting the changes needed to accomodate the new kits structure of Funtoo, and to clean up the scripting used for automation. The document will remain available for reference purposes.
+
 == Installation Overview ==
 #[[Create Your Installation Settings]]
 #[[Install the Stage 3 Tarball]]
@@ -14,14 +15,15 @@ This is an update of [[Crossdev_Automation]], reflecting the changes needed to a
 #[[Partition and Format an SDCard]]
 #[[Deploy Installation to SDCard]]
 
-
 == Get the Bash Script ==
 
 Development code is available on [https://github.com/d4g33z/sysroot.git github]. The structure of the file {{c|sysroot.sh}} should roughly correspond to the information contained here.
 
+== Follow the Installation Steps ==
+
 === Create Your Installation Settings ===
 
-Confguration your installation:
+Confguration your installation. These variables are referencecd by the {{c|sysroot.sh}} script and by this document.
 
 {{file|name=config.sh|lang=bash|desc=Set your install configuration variables|body=
 KERNEL_WORK=/usr/src/rpi_kernel
@@ -44,10 +46,31 @@ DISTCC_REMOTE_HOSTS="10.0.0.1,cpp,lzo"
 
 === Install the Stage 3 Tarball ===
 
-Download the current Funtoo stage 3 build appropriate for your Raspberry Pi device. Check the [[Subarches#arm32]] page, to see the version available for versions 1,2 and 3 of the Pi. Here we download the version for version 3 by setting the STAGE_URL variable in our configuration file.
+Download the current Funtoo stage 3 build appropriate for your Raspberry Pi device. Check the [[Subarches#arm32]] page, to see the version available for versions 1,2 and 3 of the Pi. Here we download the version for version 3 by setting the STAGE_URL variable in our configuration file. 
 
+We need to save the archive to {{c|STAGE#_ARCHIVE=/tmp/stage3-latest.tar.xz}} and unpack it to {{c|$SYSWORK=$SYSROOT_WORK/$CHOST}}. Back up or remove any previous work in that local.
+
+{{console|body=
+###i## mv -n $SYSROOT $SYSROOT.old
+###i## mkdir -p $SYSROOT
+###i## wget ${STAGE_URL} -O ${STAGE3_ARCHIVE}
+###i## tar xpfv ${STAGE3_ARCHIVE} -C ${SYSROOT}
+}}
 
 === Install the Firmware ===
+Make your work directory and clone the official firmware repo into it. Copy the appropriate boot firmware files to the sysroot, along with the video acceleration binaries. If you want to use the wireless networking function, you need the bcrm firmware as well.
+
+{{console|body=
+###i## mkdir -p ${KERNEL_WORK}
+###i## git clone --depth 1 git://github.com/raspberrypi/firmware/ ${KERNEL_WORK}/firmware
+###i## cp ${KERNEL_WORK}/firmware/boot/{bootcode.bin,fixup*.dat,start*.elf} ${SYSROOT}/boot
+###i## cp -r ${KERNEL_WORK}/firmware/hardfp/opt ${SYSROOT}
+###i## git clone --depth 1 https://github.com/RPi-Distro/firmware-nonfree ${KERNEL_WORK}/firmware-nonfree
+###i## git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull origin
+###i## mkdir -p ${SYSROOT}/lib/firmware/brcm
+###i## cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/brcmfmac43430-sdio.{bin,txt} ${SYSROOT}/lib/firmware/brcm
+}}
+
 === Configure Your System ===
 === Install Binary Kernel, Modules, and dtbs or Cross-Compile from Source ===
 ==== Retrieving Necessary Source Trees ====
