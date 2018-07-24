@@ -25,9 +25,8 @@ Too use the script, edit the {{c|config}} file and then
 ###i## source sysroot.sh && sysroot_install
 }}
 
-== Follow the Installation Steps ==
 
-=== Create Your Installation Settings ===
+== Create Your Installation Settings ==
 
 Confguration your installation. These variables are referencecd by the {{c|sysroot.sh}} script and by this document.
 
@@ -50,7 +49,7 @@ DISTCC_REMOTE_HOSTS="10.0.0.1,cpp,lzo"
 
 
 
-=== Install the Stage 3 Tarball ===
+== Install the Stage 3 Tarball ==
 
 Download the current Funtoo stage 3 build appropriate for your Raspberry Pi device. Check the [[Subarches#arm32]] page, to see the version available for versions 1,2 and 3 of the Pi. Here we download the version for version 3 by setting the STAGE_URL variable in our configuration file. 
 
@@ -65,7 +64,7 @@ We need to save the archive to {{c|$STAGE3_ARCHIVE}} and unpack it to {{c|$SYSRO
 ###i## tar xpfv ${STAGE3_ARCHIVE} -C ${SYSROOT}
 }}
 
-=== Install the Firmware ===
+== Install the Firmware ==
 Make your work directory and clone the official firmware repo into it. Copy the appropriate boot firmware files to the sysroot, along with the video acceleration binaries. If you want to use the wireless networking function, you need the bcrm firmware as well.
 
 {{console|body=
@@ -79,7 +78,7 @@ Make your work directory and clone the official firmware repo into it. Copy the 
 ###i## cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/brcmfmac43430-sdio.{bin,txt} ${SYSROOT}/lib/firmware/brcm
 }}
 
-=== Configure Your System ===
+== Configure Your System ==
 Here, we attempt to encapsulate the instructions from [[Funtoo_Linux_Installation_on_ARM]]. There are two ways to do this. Here we alter files and symlinks in {{c|$SYSROOT/etc}} directly. We could also chroot into $SYSROOT using QEMU as described below to install {{Package|sys-devel/distcc}}, use {{c|rc-update}} directly. However the method used here doesn't depend upon a functioning QEMU chroot, which can be slow and tricky to implement for beginners.
 
 ==== Set Up Mount Points ====
@@ -133,7 +132,7 @@ If you want this, set it up yourself.
 ##i## dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
 ##i## EOF
 }}
-=== Install Binary Kernel, Modules and dtbs ===
+== Install Binary Kernel, Modules and dtbs ==
 {{console|body=
 ###i## mkdir -p ${SYSROOT}/boot/overlays
 ###i## cp ${KERNEL_WORK}/firmware/boot/dts/*.dtb ${SYSROOT}/boot/
@@ -141,7 +140,7 @@ If you want this, set it up yourself.
 ###i## cp ${KERNEL_WORK}/firmware/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
 ###i## cp ${KERNEL_WORK}/firmware/boot/kernel7.img  ${SYSROOT}/boot/
 }}
-=== Cross-compile Kernel, Modules and dtbs from Source ===
+== Cross-compile Kernel, Modules and dtbs from Source ==
 ==== Install Crossdev ====
 {{Package|sys-devel/crossdev}} is a wonderful script for managing cross-compiling environments on Gentoo, but it is incompatible with Funtoo's improved gcc ebuilds. There is incomplete documentation of a pure Funtoo [https://bugs.funtoo.org/browse/FL-3787 solution], but there has been no follow up on a complete implementation.
 
@@ -151,7 +150,7 @@ A simple solution is to create a [[Local_Overlay|local overlay]] named "crossdev
 Please ensure that {{c|/etc/portage{package.keywords,package.mask,package.use} }} are all directories.
 }}
 
-===== Make a Local Local_Overlay =====
+===== Make a Local Overlay =====
 Let's follow the directions from [[Local_Overlay]], and remove the .git subdirectory.~
 {{console|body=
 ###i## mkdir /var/git/overlay
@@ -266,7 +265,7 @@ Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdir
 ###i## cp -i ${KERNEL_WORK}/linux/.config ${SYSROOT}/etc/kernels
 }}
 
-=== Partition and Format an SDCard ===
+== Partition and Format an SDCard ==
 {{console|body=
 ###i## export SDCARD=/dev/SDCARD_DEV
 }}
@@ -291,7 +290,7 @@ Make sure you have {{Package|sys-fs/dosfstools}} installed.
 ###i## mkfs.vfat ${SDCARD}1
 }}
 
-=== Deploy Installation to SDCard ===
+== Deploy Installation to SDCard ==
 {{console|body=
 ###i## mkdir -p /mnt/funtoo
 ###i## mount ${SDCARD}2 /mnt/funtoo
@@ -307,5 +306,5 @@ Make sure you have {{Package|sys-fs/dosfstools}} installed.
 ###i## umount /mnt/rpi
 }}
 
-=== Transfer the SDCard to the Raspberry Pi and Reboot ===
+== Transfer the SDCard to the Raspberry Pi and Reboot ==
 
