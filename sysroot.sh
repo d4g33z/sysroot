@@ -280,7 +280,7 @@ EOF
                     suffix="$( printf -- '-%02d' "$number" )"
                 done
 
-                fname="$SYSROOT/etc/kernels/config-$today$suffix.txt"
+                fname="$SYSROOT/etc/kernels/config-`get_kernel_version`-$today$suffix.txt"
 
                 printf 'Will use "%s" as filename\n' "$fname"
                 cp .config "$fnmae"
