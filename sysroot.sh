@@ -1,10 +1,22 @@
 #!/bin/sh
 
+XX='\e[0m'
+BO='\e[1m'
+UL='\e[4m'
 
+RED='\e[31m'
+GRE='\e[32m'
+MAG='\e[35m'
 ################################################################################
-# Load Your Installation Settings
+echo -e $UL$MAG"Create Your Installation Settings"
+echo -e $XX
 CWD="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 source ${CWD}/config
+
+for ((i=0; i< ${#INSTALL_VARS[@]}; i++)); do
+        echo -e $BO${INSTALL_VARS[$i]} = ${!INSTALL_VARS[$i]};
+done;
+echo -e $XX
 
 get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelrelease;)}
 get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelversion;)}
@@ -18,8 +30,8 @@ sysroot_install()
     fi
 
     ################################################################################
-    # Install the Stage 3 Tarball
-
+    echo -e $UL$MAG"Install the Stage 3 Tarball"
+    echo -e $XX
     SYSROOT=${SYSROOT_WORK}/${CHOST}
     STAGE3_ARCHIVE="/tmp/$(basename $STAGE3_URL)"
     STAGE3_GPG=$STAGE3_ARCHIVE.gpg
@@ -41,7 +53,8 @@ sysroot_install()
     fi
 
     ################################################################################
-    # Install the Firmware
+    echo -e $UL$MAG"Install the Firmware"
+    echo -e $XX
 
     mkdir -p ${KERNEL_WORK}
 
@@ -64,7 +77,8 @@ sysroot_install()
     fi
 
     ################################################################################
-    # Configure Your System
+    echo -e $UL$MAG"Configure Your System"
+    echo -e $XX
 
     if prompt_input_yN "configure your system"; then
 
@@ -115,7 +129,8 @@ EOF
     fi
 
     ################################################################################
-    # Install Binary Kernel, Modules and dtbs
+    echo -e $UL$MAG"Install Binary Kernel, Modules and dtbs"
+    echo -e $XX
     if prompt_input_yN "install pre-compiled binary Raspberry Pi kernel, modules, dtbs and overlays"; then
 
         mkdir -p ${SYSROOT}/boot/overlays
@@ -128,7 +143,8 @@ EOF
     fi
 
     ################################################################################
-    # Cross-compile Kernel, Modules and dtbs from Source
+    echo -e $UL$MAG"Cross-compile Kernel, Modules and dtbs from Source"
+    echo -e $XX
     if prompt_input_yN "build and install from source Raspberry Pi kernel, modules, dtbs and overlays"; then
 
         ################################################################################
@@ -285,11 +301,13 @@ EOF
                 printf 'Will use "%s" as filename\n' $fname
                 cp .config $fname
             fi
+        cd -
         fi
     fi
 
     ################################################################################
-    # Install Distcc via a QEMU Chroot
+#    echo -e $UL$MAG"Install Distcc via a QEMU Chroot"
+#    echo -e $XX
 #    if prompt_input_yN "install distcc to the sysroot"; then
 #
 #        if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
@@ -365,7 +383,8 @@ EOF
 #    fi
 
     ################################################################################
-    # Parition and Format SDCard
+    echo -e $UL$MAG"Parition and Format SDCard"
+    echo -e $XX
     SDCARD=/dev/${SDCARD_DEV}
     if prompt_input_yN "partition and format ${SDCARD}";then
 
@@ -398,7 +417,8 @@ EOF
     fi
 
     ################################################################################
-    # Deploy Installation to SDCard
+    echo -e $UL$MAG"Deploy Installation to SDCard"
+    echo -e $XX
     if prompt_input_yN "deploy ${SYSROOT} to ${SDCARD}"; then
 
         mkdir -p /mnt/rpi
@@ -425,7 +445,7 @@ EOF
 
 prompt_input_yN()
 {
-    printf "$1? [y|N] " ; shift
+    echo -e "$1? [${GRE}y|${RED}N${XX}] " ; shift
     while true; do
         read YN
         case ${YN} in

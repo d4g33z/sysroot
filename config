@@ -12,7 +12,4 @@ CFLAGS="-O2 -pipe -march=armv7-a -mtune=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=
 #SDCARD_DEV=mmcblk0p
 SDCARD_DEV=sdb
 
-#optional
-DISTCC_REMOTE_JOBS=21
-DISTCC_REMOTE_HOSTS="10.0.0.1,cpp,lzo"
-
+INSTALL_VARS=(KERNEL_WORK RPI_KERN_BRANCH SYSROOT_WORK STAGE3_URL CHOST CFLAGS SDCARD_DEV) 
