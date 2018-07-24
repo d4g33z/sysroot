@@ -123,6 +123,8 @@ EOF
         cp ${KERNEL_WORK}/firmware/boot/overlays/*.dtb* ${SYSROOT}/boot/overlays
         cp ${KERNEL_WORK}/firmware/boot/overlays/README ${SYSROOT}/boot/overlays
         cp ${KERNEL_WORK}/firmware/boot/kernel7.img  ${SYSROOT}/boot
+        mkdir -p ${SYSROOT}/lib/modules
+        cp -r ${KERNEL_WORK}/firmware/modules/* ${SYSROOT}/lib/modules
     fi
 
     ################################################################################
