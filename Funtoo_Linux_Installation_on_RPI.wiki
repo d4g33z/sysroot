@@ -1,19 +1,19 @@
 == Introduction ==
-This is the updated quick and dirty HOWTO covering the automation of cross-compiling, kernel building, emulation and booting of arbitrary architectures, but specifically focused on the cross compiling the Raspeberry Pi linux kernel sources for target arm-linux-gnueabihf and booting it on Raspberry Pi boards with a funtoo stage 3. It's so quick and dirty you probably won't be able replicate the results here on your first try. But it is possible!
+This is an extension and amplification of [[Funtoo_Linux_Installation_on_ARM]]. It attempts to systematize and automate as much as possible of steps required to get Funtoo running on the 32 bit ARM Raspberry Pi device.
 
 This is an update of [[Crossdev_Automation]], reflecting the changes needed to accomodate the new kits structure of Funtoo, and to clean up the scripting used for automation. The document will remain available for reference purposes. 
 
-[[Funtoo_Linux_Installation_on_ARM]] is an important document as well.
 
 == Installation Overview ==
-#[[Create Your Installation Settings]]
-#[[Install the Stage 3 Tarball]]
-#[[Install the Firmware]]
-#[[Configure Your System]]
-#[[Install Binary Kernel, Modules, and dtbs or Cross-Compile from Source]]
-#[[Optionally Install Distcc via QEMU Chroot]]
-#[[Partition and Format an SDCard]]
-#[[Deploy Installation to SDCard]]
+# [[#Create Your Installation Settings]]
+# [[#Install the Stage 3 Tarball]]
+# [[#Install the Firmware]]
+# [[#Configure Your System]]
+# [[#Install Binary Kernel, Modules and dtbs]]
+# [[#Cross-compile Kernel, Modules and dtbs from Source]]
+# [[#Optionally Install Distcc via QEMU Chroot]]
+# [[#Partition and Format an SDCard]]
+# [[#Deploy Installation to SDCard]]
 
 == Get the Bash Script ==
 
@@ -137,13 +137,15 @@ If you want this, set it up yourself.
 }}
 === Cross-compile Kernel, Modules and dtbs from Source ===
 ==== Install Crossdev ====
-==== Install Cross Compilation Tool Chain
-==== Retrieving Necessary Source Trees ====
-==== Using a Local Overlay with Crossdev ====
 {{Package|sys-devel/crossdev}} is a wonderful script for managing cross-compiling environments on Gentoo, but it is incompatible with Funtoo's improved gcc ebuilds. There is incomplete documentation of a pure Funtoo [https://bugs.funtoo.org/browse/FL-3787 solution], but there has been no follow up on a complete implementation.
 
 A simple solution is to create a [[Local_Overlay|local overlay]] named "crossdev", store gentoo ebuilds and patches in it, and use a crossdev command line switch to direct it to search the overlay for the appropriate ebuilds. This has the advantage of isolating all gentoo files and resulting binaries in a single directory.~
 
+{{note|
+Please ensure that {{c|/etc/portage{package.keywords,package.mask,package.use} }} are all directories.
+}}
+
+===== Make a Local Local_Overlay =====
 Let's follow the directions from [[Local_Overlay]], and remove the .git subdirectory.~
 {{console|body=
 ###i## mkdir /var/git/overlay
@@ -161,6 +163,7 @@ auto-sync = no
 priority = 10
 }}
 
+===== Sparse Checkout Gentoo GCC Ebuilds =====
 Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdirectory-only-of-a-git-repository/28039894#28039894 sparse checkout] of the main Gentoo repo.
 
 {{console|body=
@@ -172,15 +175,127 @@ Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdir
 ###i## git pull --depth=1 origin master
 }}
 
-Install crossdev.
+===== Unmask and Emerge Crossdev =====
 {{console|body=
 ###i## echo "sys-devel/crossdev **" >> /etc/portage/package.keywords/crossdev
 ###i## echo "=sys-devel/crossdev-99999999" >> /etc/portage/package.unmask/crossdev
 ###i## emerge crossdev
 }}
 
+==== Install Cross Compilation Tool Chain ====
+{{console|body=
+###i## crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CHOST}
+}}
 
-=== Optionally Install Distcc via QEMU Chroot ===
+===== Retrive Raspberry Pi Kernel Sources =====
+{{console|body=
+###i## git clone https://github.com/raspberrypi/linux.git ${KERNEL_WORK}/linux
+}}
+
+==== Clean and Update Kernel Sources ====
+{{console|body=
+###i## git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux clean -fdx
+###i## git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout master
+###i## git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux fetch --all
+###i## git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux branch -D ${RPI_KERN_BRANCH}
+###i## git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout ${RPI_KERN_BRANCH}
+}}
+
+==== Make the Default Config ====
+{{console|body=
+###i## make -j$(nproc) \
+##i## ARCH=arm \
+##i## CROSS_COMPILE=${CHOST}- \
+##i## bcm2709_defconfig
+}}
+
+==== Configure the Kernel ====
+{{console|body=
+###i## make -j$(nproc) \
+##i## ARCH=arm \
+##i## CROSS_COMPILE=${CHOST}- \
+##i## MENUCONFIG_COLOR=mono \
+##i## menuconfig
+}}
+
+==== Build and Install the Kernel ====
+{{console|body=
+###i## cd ${KERNEL_WORK}/linux
+}}
+
+{{console|body=
+###i## make -j$(nproc) \
+##i## ARCH=arm \
+##i## CROSS_COMPILE=${CHOST}- \
+##i## zImage dtbs modules
+}}
+
+{{console|body=
+###i## make -j$(nproc) \
+##i## ARCH=arm \
+##i## CROSS_COMPILE=${CHOST}- \
+##i## INSTALL_MOD_PATH=${SYSROOT} \
+##i## modules_install
+}}
+
+{{console|body=
+###i## mkdir -p ${SYSROOT}/boot/overlays
+##i## cp arch/arm/boot/dts/*.dtb ${SYSROOT}/boot/
+##i## cp arch/arm/boot/dts/overlays/*.dtb* ${SYSROOT}/boot/overlays/
+##i## cp arch/arm/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
+}}
+
+{{console|body=
+###i## scripts/mkknlimg arch/arm/boot/zImage ${SYSROOT}/boot/kernel7.img
+}}
+
+===== Remove Kernel Headers and Source Links =====
+{{console|body=
+###i## rm ${SYSROOT}/lib/modules/`get_kernel_release`/{build,source}
+}}
+
+===== Backup Kernel Config =====
+{{console|body=
+###i## mkdir -p ${SYSROOT}/etc/kernels
+###i## cp -i ${KERNEL_WORK}/linux/.config ${SYSROOT}/etc/kernels
+}}
+
 === Partition and Format an SDCard ===
+{{console|body=
+###i## export SDCARD=/dev/SDCARD_DEV
+}}
+==== Randomize SDCard ====
+{{console|body=
+###i## dd if=/dev/urandom of=${SDCARD} bs=1M status=progress
+}}
+==== Write Parition Scheme to SDCard ====
+{{console|body=
+###i## umount -Rl ${SDCARD}
+###i## sfdisk --no-reread --wipe always ${SDCARD} << EOF
+##i## label: dos
+##i## unit: sectors
+##i## ${SDCARD}1 : start=        2048, size=     1048576, type=c
+##i## ${SDCARD}2 : start=     1050624, type=83
+##i## EOF
+}}
+==== Format SDCard ====
+{{console|body=
+###i## mkfs.ext4 ${SDCARD}2
+###i## mkfs.vfat ${SDCARD}1
+}}
+
 === Deploy Installation to SDCard ===
+{{console|body=
+###i## mkdir -p /mnt/funtoo
+###i## mount ${SDCARD}2 /mnt/funtoo
+###i## mkdir -p /mnt/funtoo/boot
+###i## mount ${SDCARD}1 /mnt/funtoo/boot
+###i## rsync --archive \
+##i##      --verbose \
+##i##      --progress \
+##i##      --exclude "var/git/*" \
+##i##    ${SYSROOT}/{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev} \
+##i##    /mnt/funtoo/
+}}
+
 
