@@ -144,7 +144,7 @@ EOF
             done
             
             # Make a Local Overlay
-            if [ ! -d /var/git/overlay/crossdev]; then
+            if [ ! -d /var/git/overlay/crossdev ]; then
                 mkdir -p /var/git/overlay
                 cd /var/git/overlay
                 git clone  https://github.com/funtoo/skeleton-overlay.git crossdev
@@ -160,7 +160,7 @@ EOF
             fi
 
             #Sparse Checkout Gentoo GCC Ebuilds
-            if [ ! -d /var/git/overlay/crossdev/.git]; then
+            if [ ! -d /var/git/overlay/crossdev/.git ]; then
                 cd /var/git/overlay/crossdev
                 git init
                 git remote add origin git://github.com/gentoo/gentoo.git
