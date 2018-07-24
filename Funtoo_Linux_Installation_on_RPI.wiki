@@ -150,7 +150,7 @@ A simple solution is to create a [[Local_Overlay|local overlay]] named "crossdev
 Please ensure that {{c|/etc/portage{package.keywords,package.mask,package.use} }} are all directories.
 }}
 
-===== Make a Local Overlay =====
+==== Make a Local Overlay ====
 Let's follow the directions from [[Local_Overlay]], and remove the .git subdirectory.~
 {{console|body=
 ###i## mkdir /var/git/overlay
@@ -168,7 +168,7 @@ auto-sync = no
 priority = 10
 }}
 
-===== Sparse Checkout Gentoo GCC Ebuilds =====
+==== Sparse Checkout Gentoo GCC Ebuilds ====
 Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdirectory-only-of-a-git-repository/28039894#28039894 sparse checkout] of the main Gentoo repo.
 
 {{console|body=
@@ -180,7 +180,7 @@ Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdir
 ###i## git pull --depth=1 origin master
 }}
 
-===== Unmask and Emerge Crossdev =====
+==== Unmask and Emerge Crossdev ====
 {{console|body=
 ###i## echo "sys-devel/crossdev **" >> /etc/portage/package.keywords/crossdev
 ###i## echo "=sys-devel/crossdev-99999999" >> /etc/portage/package.unmask/crossdev
@@ -192,7 +192,7 @@ Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdir
 ###i## crossdev -S --ov-gcc /var/git/overlay/crossdev -t ${CHOST}
 }}
 
-===== Retrive Raspberry Pi Kernel Sources =====
+==== Retrive Raspberry Pi Kernel Sources ====
 {{console|body=
 ###i## git clone https://github.com/raspberrypi/linux.git ${KERNEL_WORK}/linux
 }}
@@ -254,12 +254,12 @@ Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdir
 ###i## scripts/mkknlimg arch/arm/boot/zImage ${SYSROOT}/boot/kernel7.img
 }}
 
-===== Remove Kernel Headers and Source Links =====
+==== Remove Kernel Headers and Source Links ====
 {{console|body=
 ###i## rm ${SYSROOT}/lib/modules/`get_kernel_release`/{build,source}
 }}
 
-===== Backup Kernel Config =====
+==== Backup Kernel Config ====
 {{console|body=
 ###i## mkdir -p ${SYSROOT}/etc/kernels
 ###i## cp -i ${KERNEL_WORK}/linux/.config ${SYSROOT}/etc/kernels
