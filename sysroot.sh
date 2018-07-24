@@ -255,19 +255,33 @@ EOF
             cp arch/arm/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
             scripts/mkknlimg arch/arm/boot/zImage ${SYSROOT}/boot/kernel7.img
 
+            ################################################################################
+            # Remove Kernel Headers and Source Links
             if prompt_input_yN "remove kernel headers and source"; then
                 rm ${SYSROOT}/lib/modules/`get_kernel_release`/{build,source}
             fi
 
-            if prompt_input_yN "save new kernel config to /etc/kernels"; then
-                cp .config ${SYSROOT}/etc/kernels/arm.default
+            ################################################################################
+            # Backup Kernel Config
+            if prompt_input_yN "save new kernel config to $SYSROOT/etc/kernels"; then
+                today="$( date +"%Y%m%d" )"
+                number=0
+
+                while test -e "$SYSROOT/etc/kernels/config-$today$suffix.txt"; do
+                    (( ++number ))
+                    suffix="$( printf -- '-%02d' "$number" )"
+                done
+
+                fname="$SYSROOT/etc/kernels/config-$today$suffix.txt"
+
+                printf 'Will use "%s" as filename\n' "$fname"
+                cp .config "$fnmae"
             fi
         fi
     fi
 
     ################################################################################
     # Optionally Install Distcc via QEMU Chroot
-
     if prompt_input_yN "install distcc to the sysroot"; then
 
         if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
