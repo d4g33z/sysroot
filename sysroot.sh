@@ -115,12 +115,9 @@ EOF
     fi
 
     ################################################################################
-    # Install Binary Kernel, Modules, and dtbs or Cross-Compile from Source 
-
+    # Install Binary Kernel, Modules and dtbs
     if prompt_input_yN "install pre-compiled binary Raspberry Pi kernel, modules, dtbs and overlays"; then
 
-        ################################################################################
-        # Install Binary Kernel, Modules and dtbs
         mkdir -p ${SYSROOT}/boot/overlays
         cp ${KERNEL_WORK}/firmware/boot/dts/*.dtb ${SYSROOT}/boot/
         cp ${KERNEL_WORK}/firmware/boot/dts/overlays/*.dtb* ${SYSROOT}/boot/overlays/
@@ -162,7 +159,7 @@ EOF
  
             fi
 
-            #Sparse Checkout Gentoo GCC Builds
+            #Sparse Checkout Gentoo GCC Ebuilds
             if [ ! -d /var/git/overlay/crossdev/.git]; then
                 cd /var/git/overlay/crossdev
                 git init
@@ -194,11 +191,15 @@ EOF
 
         fi
 
+        ################################################################################
+        # Retrive Raspberry Pi Kernel Sources
         if prompt_input_yN "Retrieve Raspberry Pi Kernel Sources"; then
             if [ ! -d ${KERNEL_WORK}/linux ]; then
                 git clone https://github.com/raspberrypi/linux.git ${KERNEL_WORK}/linux
             fi
         fi 
+        ################################################################################
+        #Clean and Update Kernel Sources
         if prompt_input_yN "clean and update sources from raspberrypi/linux"; then
             git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux clean -fdx
             git --git-dir=${KERNEL_WORK}/linux/.git --work-tree=${KERNEL_WORK}/linux checkout master
