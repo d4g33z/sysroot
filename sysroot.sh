@@ -275,15 +275,15 @@ EOF
                 today="$( date +"%Y%m%d" )"
                 number=0
 
-                while test -e "$SYSROOT/etc/kernels/config-$today$suffix.txt"; do
+                while test -e "${SYSROOT}/etc/kernels/config-`get_kernel_version`-$today$suffix.txt"; do
                     (( ++number ))
                     suffix="$( printf -- '-%02d' "$number" )"
                 done
 
-                fname="$SYSROOT/etc/kernels/config-`get_kernel_version`-$today$suffix.txt"
+                fname="${SYSROOT}/etc/kernels/config-`get_kernel_version`-$today$suffix.txt"
 
-                printf 'Will use "%s" as filename\n' "$fname"
-                cp .config "$fnmae"
+                printf 'Will use "%s" as filename\n' $fname
+                cp .config $fname
             fi
         fi
     fi
