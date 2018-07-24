@@ -215,10 +215,9 @@ EOF
             return 1
         fi
 
-        cd ${KERNEL_WORK}/linux
-
         ################################################################################
         # Make the Default Config
+        cd ${KERNEL_WORK}/linux
         if prompt_input_yN "make bcm2709_defconfig"; then
             make -j$(nproc) \
             ARCH=arm \
@@ -237,7 +236,7 @@ EOF
         fi
 
         ################################################################################
-        # Build the Kernel
+        # Build and Install the Kernel
         if prompt_input_yN "build kernel"; then
             make -j$(nproc) \
             ARCH=arm \
@@ -254,6 +253,7 @@ EOF
             cp arch/arm/boot/dts/*.dtb ${SYSROOT}/boot/
             cp arch/arm/boot/dts/overlays/*.dtb* ${SYSROOT}/boot/overlays/
             cp arch/arm/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
+
             scripts/mkknlimg arch/arm/boot/zImage ${SYSROOT}/boot/kernel7.img
 
             ################################################################################
@@ -265,6 +265,9 @@ EOF
             ################################################################################
             # Backup Kernel Config
             if prompt_input_yN "save new kernel config to $SYSROOT/etc/kernels"; then
+
+                mkdir -p ${SYSROOT}/etc/kernels
+
                 today="$( date +"%Y%m%d" )"
                 number=0
 
@@ -282,7 +285,7 @@ EOF
     fi
 
     ################################################################################
-    # Optionally Install Distcc via QEMU Chroot
+    # Install Distcc via a QEMU Chroot
     if prompt_input_yN "install distcc to the sysroot"; then
 
         if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
@@ -358,34 +361,40 @@ EOF
     fi
 
     ################################################################################
-    # Parition and Format an SDCard
+    # Parition and Format SDCard
+    SDCARD=/dev/${SDCARD_DEV}
+    if prompt_input_yN "partition and format ${SDCARD}";then
 
-    if prompt_input_yN "wipe and randomize ${SDCARD} bits"; then
-        dd if=/dev/urandom of=${SDCARD} bs=1M status=progress
-    fi
-
-    if prompt_input_yN "write partition scheme to ${SDCARD}"; then
-        if [ "$(mount | grep ${SDCARD})" != "" ]; then
-            umount -Rl ${SDCARD}
+        ################################################################################
+        # Randomize SDCard
+        if prompt_input_yN "wipe and randomize ${SDCARD} bits"; then
+            dd if=/dev/urandom of=${SDCARD} bs=1M status=progress
         fi
-        sfdisk --no-reread --wipe always ${SDCARD} << EOF
+
+        ################################################################################
+        # Write Parition Scheme to SDCard
+        if prompt_input_yN "write partition scheme to ${SDCARD}"; then
+            if [ "$(mount | grep ${SDCARD})" != "" ]; then
+                umount -Rl ${SDCARD}
+            fi
+            sfdisk --no-reread --wipe always ${SDCARD} << EOF
 label: dos
 unit: sectors
 ${SDCARD}1 : start=        2048, size=     1048576, type=c
 ${SDCARD}2 : start=     1050624, type=83
 EOF
-    fi
+        fi
 
-    if prompt_input_yN "format ${SDCARD}"; then
-        mkfs.ext4 ${SDCARD}2
-        mkfs.vfat ${SDCARD}1
+        ################################################################################
+        # Format SDCard
+        if prompt_input_yN "format ${SDCARD}"; then
+            mkfs.ext4 ${SDCARD}2
+            mkfs.vfat ${SDCARD}1
+        fi
     fi
 
     ################################################################################
     # Deploy Installation to SDCard
-
-    SDCARD=/dev/${SDCARD_DEV}
-    
     if prompt_input_yN "deploy ${SYSROOT} to ${SDCARD}"; then
 
         mkdir -p /mnt/rpi
