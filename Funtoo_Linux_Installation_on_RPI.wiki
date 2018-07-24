@@ -11,10 +11,11 @@ This is an update of [[Crossdev_Automation]], reflecting the changes needed to a
 # [[#Configure Your System]]
 # [[#Install Binary Kernel, Modules and dtbs]]
 # [[#Cross-compile Kernel, Modules and dtbs from Source]]
-# [[#Optionally Install Distcc via QEMU Chroot]]
+# [[#Install a QEMU Chroot]]
 # [[#Partition and Format an SDCard]]
 # [[#Deploy Installation to SDCard]]
 # [[#Transfer the SDCard to the Raspberry Pi and Reboot]]
+# [[#Enjoy!]]
 
 == Get the Bash Script ==
 
@@ -79,14 +80,16 @@ Make your work directory and clone the official firmware repo into it. Copy the 
 }}
 
 == Configure Your System ==
-Here, we attempt to encapsulate the instructions from [[Funtoo_Linux_Installation_on_ARM]]. There are two ways to do this. Here we alter files and symlinks in {{c|$SYSROOT/etc}} directly. We could also chroot into $SYSROOT using QEMU as described below to install {{Package|sys-devel/distcc}}, use {{c|rc-update}} directly. However the method used here doesn't depend upon a functioning QEMU chroot, which can be slow and tricky to implement for beginners.
+Here, we attempt to encapsulate the instructions from [[Funtoo_Linux_Installation_on_ARM]]. There are two ways to do this. Here we alter files and symlinks in {{c|$SYSROOT/etc}} directly.
+
+We could also chroot into $SYSROOT using QEMU as described [[#Install a QEMU Chroot|below]] to install packages, edit files and use {{c|rc-update}} directly to set up services.
 
 ==== Set Up Mount Points ====
 Alter {{c|$SYSROOT/etc/fstab}} as follows. We remove the swap (for now), and alter the storage device name and parition file types. We also remove the {{c|/dev/cdrom}} device.
 
 {{file|name=$SYSROOT/etc/fstab|body=
 /dev/mmcblk0p1  /boot   vfat    noauto,noatime  1 2
-/dev/mmcblk0p2  /   ext4    noatime 0 1
+/dev/mmcblk0p2  /       ext4    noatime         0 1
 }}
 
 We can use the following {{Package|sys-apps/sed}} code.
@@ -98,19 +101,24 @@ We can use the following {{Package|sys-apps/sed}} code.
 }}
 
 ==== Set Up Root Password ====
+Here we interactively add a root password to log in with to $XC_STAGE3S/etc/shadow.
+{{warning|Occasionally this fails due to an unescaped sed control character in the password hash. Just try it until it works, or run the password generation separately from the shadow file editing, or actually fix it.}}
 {{console|body=
 ###i## sed -i "s/root\:\*/root\:`(openssl passwd -1)`/" $SYSROOT/etc/shadow
 }}
 ==== Set Up Networking ====
+We add dhcpcd as a default runlevel service.
 {{console|body=
 ###i## ln -sf /etc/init.d/dhcpcd ${SYSROOT}/etc/runlevels/default
 }}
 ==== Set Up SSH Access ====
+If you want to ssh to the board as root, you need to allow it explicitly and we add sshd as a default runlevel service.
 {{console|body=
 ###i## echo "PermitRootLogin yes" >> ${SYSROOT}/etc/ssh/sshd_config
 ###i## ln -sf /etc/init.d/sshd ${SYSROOT}/etc/runlevels/default 
 }}
 ==== Set Up the Software Clock ====
+Let's set up the software clock. This is Raspberry Pi specific, and due to its lack of a stock RTC chipset. This has ramifications for maintaining the correct time via a pacakge like {{Package|net-misc/openntpd}}.
 {{console|body=
 ###i## ln -sf /etc/init.d/swclock ${SYSROOT}/etc/runlevels/boot
 ###i## rm ${SYSROOT}/etc/runlevels/boot/hwclock
@@ -118,14 +126,25 @@ We can use the following {{Package|sys-apps/sed}} code.
 ###i## touch ${SYSROOT}/lib/rc/cache/shutdowntime
 }}
 ==== Disable Serial Console Access ====
-If you want this, set it up yourself.
+Let's prevent serial consoles from spawning. If you have a need for this, you'll be able to set it up yourself.
 {{console|body=
 ###i## sed -i "s/s0\:.*/\#&/" ${SYSROOT}/etc/inittab
 }}
 ==== Link to Accelerated Video Libraries ====
+You must add /opt/vc/lib to LD_LIBRARY_PATH in the shell, or export LDPATH=/opt/vc/lib via a file in /etc/env.d if you want to link against these firmware libraries. This is critical if you want to do any accelerated graphics or gpu level work.
 {{console|body=
 ###i## echo "LDPATH=\"/opt/vc/lib\"" > ${SYSROOT}/etc/env.d/99vc
 }}
+
+If you want to try building native vc4 acceleration with media-libs/mesa you must unmask the appropriate USE flags at the profile level and VIDEO_CARDS="vc4" in make.conf.
+{{console|body=
+###i## cat > /etc/portage/profile/portage.use.mask << EOF
+##i##media-libs/mesa -video_cards_vc4 
+##i##x11-libs/libdrm -video_cards_vc4
+##i##EOF
+}}
+
+
 ==== Configure the Boot Parameters ====
 {{console|body=
 ###i## cat > ${SYSROOT}/boot/cmdline.txt << EOF
@@ -207,6 +226,41 @@ Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdir
 }}
 
 ==== Make the Default Config ====
+The next set of {{c|make}} commands take place in the kernel source directory.
+{{console|body=
+###i## cd ${KERNEL_WORK}/linux
+}}
+
+There are many useful make targets to control kernel configs. In particular, the architecture specific ones are most useful in cross-compiling applications. You can see all available architecture specfic default configurations with the following command.
+{{console|body=
+###i## make -j$(nproc) \
+##i## ARCH=arm \
+##i## CROSS_COMPILE=${CHOST}- \
+##i## make_defconfig_help 
+# Architecture specific targets (arm):
+... <targets we don't need> ...
+
+acs5k_defconfig          - Build for acs5k
+acs5k_tiny_defconfig     - Build for acs5k_tiny
+am200epdkit_defconfig    - Build for am200epdkit
+assabet_defconfig        - Build for assabet
+at91_dt_defconfig        - Build for at91_dt
+axm55xx_defconfig        - Build for axm55xx
+badge4_defconfig         - Build for badge4
+##r##bcm2709_defconfig        - Build for bcm2709
+bcm2835_defconfig        - Build for bcm2835
+bcm_defconfig            - Build for bcm
+bcmrpi_defconfig         - Build for bcmrpi
+cerfcube_defconfig       - Build for cerfcube
+clps711x_defconfig       - Build for clps711x
+...<lots o configs>...
+zeus_defconfig           - Build for zeus
+zx_defconfig             - Build for zx
+
+...<more targets we don't need> ...
+ 
+}}
+
 {{console|body=
 ###i## make -j$(nproc) \
 ##i## ARCH=arm \
@@ -224,10 +278,6 @@ Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdir
 }}
 
 ==== Build and Install the Kernel ====
-{{console|body=
-###i## cd ${KERNEL_WORK}/linux
-}}
-
 {{console|body=
 ###i## make -j$(nproc) \
 ##i## ARCH=arm \
@@ -264,6 +314,9 @@ Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdir
 ###i## mkdir -p ${SYSROOT}/etc/kernels
 ###i## cp -i ${KERNEL_WORK}/linux/.config ${SYSROOT}/etc/kernels
 }}
+
+== Install a QEMU Chroot ==
+Coming Soon! This isn't necessary to complete the install as described here. This will probably be a separate document to distinguish the two methods.
 
 == Partition and Format an SDCard ==
 {{console|body=
@@ -307,4 +360,4 @@ Make sure you have {{Package|sys-fs/dosfstools}} installed.
 }}
 
 == Transfer the SDCard to the Raspberry Pi and Reboot ==
-
+== Enjoy! ==
