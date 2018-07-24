@@ -208,7 +208,6 @@ EOF
         fi
 
 
-            nproc=$(nproc)
 
         if [ ! -d ${KERNEL_WORK}/linux ]; then
             echo "error: no sources found in ${KERNEL_WORK}/linux"
@@ -217,28 +216,34 @@ EOF
 
         cd ${KERNEL_WORK}/linux
 
+        ################################################################################
+        # Make the Default Config
         if prompt_input_yN "make bcm2709_defconfig"; then
-            make -j${nproc} \
+            make -j$(nproc) \
             ARCH=arm \
             CROSS_COMPILE=${CHOST}- \
             bcm2709_defconfig
         fi
 
+        ################################################################################
+        # Configure the Kernel
         if prompt_input_yN "make menuconfig"; then
-            make -j${nproc} \
+            make -j$(nproc) \
             ARCH=arm \
             CROSS_COMPILE=${CHOST}- \
             MENUCONFIG_COLOR=mono \
             menuconfig
         fi
 
+        ################################################################################
+        # Build the Kernel
         if prompt_input_yN "build kernel"; then
-            make -j${nproc} \
+            make -j$(nproc) \
             ARCH=arm \
             CROSS_COMPILE=${CHOST}- \
             zImage dtbs modules
 
-            make -j${nproc} \
+            make -j$(nproc) \
             ARCH=arm \
             CROSS_COMPILE=${CHOST}- \
             INSTALL_MOD_PATH=${SYSROOT} \
