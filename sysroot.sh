@@ -144,7 +144,7 @@ EOF
             done
             
             # Make a Local Overlay
-            if [ ! -d /var/git/overlay/crossdev]; then
+            if [ ! -d /var/git/overlay/crossdev ]; then
                 mkdir -p /var/git/overlay
                 cd /var/git/overlay
                 git clone  https://github.com/funtoo/skeleton-overlay.git crossdev
@@ -160,7 +160,7 @@ EOF
             fi
 
             #Sparse Checkout Gentoo GCC Ebuilds
-            if [ ! -d /var/git/overlay/crossdev/.git]; then
+            if [ ! -d /var/git/overlay/crossdev/.git ]; then
                 cd /var/git/overlay/crossdev
                 git init
                 git remote add origin git://github.com/gentoo/gentoo.git
@@ -171,14 +171,16 @@ EOF
             
             #Unmask and Emerge Crossdev
             if prompt_input_yN "emerge crossdev"; then
-                if [ "$(grep crossdev-99999999 /etc/portage/package.unmask)" = "" ]; then
-                    echo "=sys-devel/crossdev-99999999" >> /etc/portage/package.unmask
+                if [ "$(grep crossdev-99999999 /etc/portage/package.unmask/crossdev)" = "" ]; then
+                    echo "=sys-devel/crossdev-99999999" >> /etc/portage/package.unmask/crossdev
                 fi
                 if [ ! -d /etc/portage/package.keywords ]; then
                     echo "error: convert /etc/portage/package.keywords to a directory"
                     return 1
                 else
-                    echo "sys-devel/crossdev **" > /etc/portage/package.keywords/crossdev
+                    if [ "$(grep crossdev-99999999 /etc/portage/package.keywords/crossdev)" = "" ]; then
+                        echo "sys-devel/crossdev **" > /etc/portage/package.keywords/crossdev
+                    fi
                 fi
                 emerge -q crossdev
             fi
