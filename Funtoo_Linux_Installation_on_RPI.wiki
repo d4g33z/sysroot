@@ -19,13 +19,18 @@ This is an update of [[Crossdev_Automation]], reflecting the changes needed to a
 
 Development code is available on [https://github.com/d4g33z/sysroot.git github]. The structure of the file {{c|sysroot.sh}} should roughly correspond to the information contained here.
 
+Too use the script, edit the {{c|config}} file and then
+{{console|body=
+###i## source sysroot.sh && sysroot_install
+}}
+
 == Follow the Installation Steps ==
 
 === Create Your Installation Settings ===
 
 Confguration your installation. These variables are referencecd by the {{c|sysroot.sh}} script and by this document.
 
-{{file|name=config.sh|lang=bash|desc=Set your install configuration variables|body=
+{{file|name=config|lang=bash|desc=Set your install configuration variables|body=
 KERNEL_WORK=/usr/src/rpi_kernel
 RPI_KERN_BRANCH=rpi-4.14.y
 
@@ -84,7 +89,7 @@ Alter {{c|$SYSROOT/etc/fstab}} as follows. We remove the swap (for now), and alt
 /dev/mmcblk0p2  /   ext4    noatime 0 1
 }}
 
-We can use the following {{c|sed}} code.
+We can use the following {{Package|sys-apps/sed}} code.
 {{console|body=
 ###i## sed -i "s/\/dev\/sda1.*/\/dev\/mmcblk0p1 \/boot vfat defaults 0 2/" ${SYSROOT}/etc/fstab
 ###i## sed -i "s/\/dev\/sda2.*//" ${SYSROOT}/etc/fstab
@@ -279,6 +284,7 @@ Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdir
 ##i## EOF
 }}
 ==== Format SDCard ====
+Make sure you have {{Package|sys-fs/dosfstools}} installed.
 {{console|body=
 ###i## mkfs.ext4 ${SDCARD}2
 ###i## mkfs.vfat ${SDCARD}1
