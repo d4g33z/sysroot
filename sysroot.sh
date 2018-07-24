@@ -21,7 +21,8 @@ sysroot_install()
     # Install the Stage 3 Tarball
 
     SYSROOT=${SYSROOT_WORK}/${CHOST}
-    STAGE3_ARCHIVE="/tmp/$(basename %STAGE3_URL)"
+    STAGE3_ARCHIVE="/tmp/$(basename $STAGE3_URL)"
+    STAGE3_GPG=$STAGE3_ARCHIVE.gpg
 
     if [ -d ${SYSROOT} ]; then
         if prompt_input_yN "backup previous sysroot to ${SYSROOT}.old"; then
@@ -29,7 +30,6 @@ sysroot_install()
             mkdir -p ${SYSROOT}
         fi
     fi
-
     if prompt_input_yN "download stage3-latest for ARM architecture"; then
         [ -f ${STAGE3_ARCHIVE} ] && mv ${STAGE3_ARCHIVE} ${STAGE3_ARCHIVE}.bak
         wget ${STAGE3_URL} -O ${STAGE3_ARCHIVE}
@@ -45,7 +45,7 @@ sysroot_install()
 
     mkdir -p ${KERNEL_WORK}
 
-    if [ ! -d ${KERNEL_WORK}/firmware]; then
+    if [ ! -d ${KERNEL_WORK}/firmware ]; then
         git clone --depth 1 git://github.com/raspberrypi/firmware/ ${KERNEL_WORK}/firmware
     fi
 
@@ -119,10 +119,10 @@ EOF
     if prompt_input_yN "install pre-compiled binary Raspberry Pi kernel, modules, dtbs and overlays"; then
 
         mkdir -p ${SYSROOT}/boot/overlays
-        cp ${KERNEL_WORK}/firmware/boot/dts/*.dtb ${SYSROOT}/boot/
-        cp ${KERNEL_WORK}/firmware/boot/dts/overlays/*.dtb* ${SYSROOT}/boot/overlays/
-        cp ${KERNEL_WORK}/firmware/boot/dts/overlays/README ${SYSROOT}/boot/overlays/
-        cp ${KERNEL_WORK}/firmware/boot/kernel7.img  ${SYSROOT}/boot/
+        cp -r ${KERNEL_WORK}/firmware/boot ${SYSROOT}
+        cp ${KERNEL_WORK}/firmware/boot/overlays/*.dtb* ${SYSROOT}/boot/overlays
+        cp ${KERNEL_WORK}/firmware/boot/overlays/README ${SYSROOT}/boot/overlays
+        cp ${KERNEL_WORK}/firmware/boot/kernel7.img  ${SYSROOT}/boot
     fi
 
     ################################################################################
