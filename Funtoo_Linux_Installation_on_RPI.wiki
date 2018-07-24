@@ -131,7 +131,8 @@ Let's prevent serial consoles from spawning. If you have a need for this, you'll
 ###i## sed -i "s/s0\:.*/\#&/" ${SYSROOT}/etc/inittab
 }}
 ==== Link to Accelerated Video Libraries ====
-You must add /opt/vc/lib to LD_LIBRARY_PATH in the shell, or export LDPATH=/opt/vc/lib via a file in /etc/env.d if you want to link against these firmware libraries. This is critical if you want to do any accelerated graphics or gpu level work.
+You must add {{c|/opt/vc/lib}} to {{c|$LD_LIBRARY_PATH}} in the shell, or use the {{c|env-update}} functionality of Funtoo if you want to link against these firmware libraries. This is critical if you want to do any accelerated graphics or gpu level work.
+Here we add an entry to the appropriate configuration file which {{c|env-update}} will pick up whenever we {{c|source /etc/profile}}.
 {{console|body=
 ###i## echo "LDPATH=\"/opt/vc/lib\"" > ${SYSROOT}/etc/env.d/99vc
 }}
