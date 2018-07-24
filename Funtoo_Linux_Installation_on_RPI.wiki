@@ -307,5 +307,5 @@ Make sure you have {{Package|sys-fs/dosfstools}} installed.
 ###i## umount /mnt/rpi
 }}
 
-=== Transfer SDCard to the Raspberry Pi and Reboot ===
+=== Transfer the SDCard to the Raspberry Pi and Reboot ===
 
