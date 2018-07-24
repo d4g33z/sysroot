@@ -171,14 +171,16 @@ EOF
             
             #Unmask and Emerge Crossdev
             if prompt_input_yN "emerge crossdev"; then
-                if [ "$(grep crossdev-99999999 /etc/portage/package.unmask)" = "" ]; then
-                    echo "=sys-devel/crossdev-99999999" >> /etc/portage/package.unmask
+                if [ "$(grep crossdev-99999999 /etc/portage/package.unmask/crossdev)" = "" ]; then
+                    echo "=sys-devel/crossdev-99999999" >> /etc/portage/package.unmask/crossdev
                 fi
                 if [ ! -d /etc/portage/package.keywords ]; then
                     echo "error: convert /etc/portage/package.keywords to a directory"
                     return 1
                 else
-                    echo "sys-devel/crossdev **" > /etc/portage/package.keywords/crossdev
+                    if [ "$(grep crossdev-99999999 /etc/portage/package.keywords/crossdev)" = "" ]; then
+                        echo "sys-devel/crossdev **" > /etc/portage/package.keywords/crossdev
+                    fi
                 fi
                 emerge -q crossdev
             fi
