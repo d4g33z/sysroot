@@ -279,6 +279,7 @@ Let's make a [https://stackoverflow.com/questions/600079/how-do-i-clone-a-subdir
 ##i## EOF
 }}
 ==== Format SDCard ====
+Make sure you have {{Package|sys-fs/dosfstools}} installed.
 {{console|body=
 ###i## mkfs.ext4 ${SDCARD}2
 ###i## mkfs.vfat ${SDCARD}1
