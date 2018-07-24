@@ -1,9 +1,9 @@
 #!/bin/sh
 
-CWD="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 ################################################################################
 # Load Your Installation Settings
+CWD="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 source ${CWD}/config
 
 get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelrelease;)}
@@ -142,7 +142,7 @@ EOF
                     mv ${dir}"_file" ${dir}
                 fi
             done
-            
+
             # Make a Local Overlay
             if [ ! -d /var/git/overlay/crossdev ]; then
                 mkdir -p /var/git/overlay
@@ -168,7 +168,7 @@ EOF
                 echo "sys-devel/gcc" > .git/info/sparse-checkout
                 git pull --depth=1 origin master
             fi
-            
+
             #Unmask and Emerge Crossdev
             if prompt_input_yN "emerge crossdev"; then
                 if [ "$(grep crossdev-99999999 /etc/portage/package.unmask/crossdev)" = "" ]; then
