@@ -342,7 +342,6 @@ EOF
             fi
 
             if [ "$(which qemu-arm 2>/dev/null)" != "/usr/bin/qemu-arm" ]; then
-
                 echo "app-emulation/qemu static-user" > /etc/portage/package.use/qemu
                 echo "dev-libs/libpcre static-libs" >> /etc/portage/package.use/qemu
                 echo "sys-apps/attr static-libs" >> /etc/portage/package.use/qemu
@@ -362,10 +361,9 @@ EOF
 
                 emerge -q app-emulation/qemu
 
-                quickpkg app-emulation/qemu
-                ROOT=${SYSROOT}/ emerge -q --usepkgonly --oneshot --nodeps qemu
             fi
-
+            quickpkg app-emulation/qemu
+            ROOT=${SYSROOT}/ emerge -q --usepkgonly --oneshot --nodeps qemu
         fi
         if prompt_input_yN "test QEMU chroot"; then
             cat > /tmp/test_chroot.sh << EOF
