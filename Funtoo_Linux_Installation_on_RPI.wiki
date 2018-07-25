@@ -319,7 +319,7 @@ zx_defconfig             - Build for zx
 === Install a QEMU Chroot ===
 {{Package|app-emulation/qemu}} relies upon KVM and the associated kernel module, called either {{c|kvm_intel}} or {{c|kvm_amd}}, depending on the architecture the kernel is running on. Please 
 
-=== Example: Chroot with ARM Emulation
+=== Example: Chroot with ARM Emulation ===
 {{console|body=
 ###i## source sysroot.sh && sysroot_chroot $SYSROOT_WORK/$CHOST
 ###i## export PS1="(chroot) $PS1"
@@ -335,11 +335,35 @@ zx_defconfig             - Build for zx
 
   NOTE: Meta-repo has not yet been cloned, so no kit information is available. Type ego sync to perform an initial
   clone of meta-repo.
+(chroot) ###i## ego sync
 (chroot) ###i## exit
 }}
 
 
-=== Example: Install {{c|distcc}} with a Script ===
+=== Example: Run a Shell Script in the ARM Chroot ===
+{{console|body=
+###i## cat > /tmp/shell_test.sh << EOF
+##i## #!/bin/sh
+##i## ego profile
+##i## EOF
+###i## . sysroot.sh && sysroot_run_in_chroot $SYSROOT_WORK/$CHOST /tmp/shell_test.sh
+=== Enabled Profiles: ===
+
+        arch: arm-32bit
+       build: current
+     subarch: raspi3
+      flavor: core
+     mix-ins: (not set)
+
+
+=== Python kit: ===
+
+      branch: 3.4-prime
+
+=== All inherited flavor from core flavor: ===
+
+                         minimal (from core flavor)
+}}
 
 == Partition and Format an SDCard ==
 {{console|body=
