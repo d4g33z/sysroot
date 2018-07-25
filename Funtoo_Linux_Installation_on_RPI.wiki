@@ -14,7 +14,7 @@ This is an update of [[Crossdev_Automation]], reflecting the changes needed to a
 # [[#Use QEMU]]
 # [[#Partition and Format an SDCard]]
 # [[#Deploy Installation to SDCard]]
-# [[#Transfer the SDCard to the Raspberry Pi and Reboot]]
+# [[#Transfer the SDCard to the Raspberry Pi and Boot]]
 # [[#Enjoy!]]
 
 == Get the Bash Script ==
@@ -316,8 +316,22 @@ zx_defconfig             - Build for zx
 }}
 
 == Use QEMU ==
+{{Package|app-emulation/qemu}} relies upon KVM and the associated kernel module, called either {{c|kvm_intel}} or {{c|kvm_amd}}, depending on the architecture the kernel is running on. Please see [[KVM]] to find out how to get these kernel modules loaded and virtualization working.
 === Install a QEMU Chroot ===
-{{Package|app-emulation/qemu}} relies upon KVM and the associated kernel module, called either {{c|kvm_intel}} or {{c|kvm_amd}}, depending on the architecture the kernel is running on. Please 
+{{console|body=
+###i## echo "app-emulation/qemu static-user" > /etc/portage/package.use/qemu
+###i## echo "dev-libs/libpcre static-libs" >> /etc/portage/package.use/qemu
+###i## echo "sys-apps/attr static-libs" >> /etc/portage/package.use/qemu
+###i## echo "dev-libs/glib static-libs" >> /etc/portage/package.use/qemu
+###i## echo "sys-libs/zlib static-libs" >> /etc/portage/package.use/qemu
+###i## echo "QEMU_SOFTMMU_TARGETS=\"arm\"" >> /etc/portage/make.conf
+###i## echo "QEMU_SOFTMMU_TARGETS=\"\${QEMU_SOFTMMU_TARGETS} arm\"" >> /etc/portage/make.conf
+###i## echo 'QEMU_USER_TARGETS="arm"' >> /etc/portage/make.conf
+###i## echo 'QEMU_USER_TARGETS="${QEMU_USER_TARGETS} arm"' >> /etc/portage/make.conf
+###i## emerge -q app-emulation/qemu
+###i## quickpkg app-emulation/qemu
+###i## ROOT=${SYSROOT}/ emerge -q --usepkgonly --oneshot --nodeps qemu
+}}
 
 === Example: Chroot with ARM Emulation ===
 {{console|body=
@@ -406,5 +420,5 @@ Make sure you have {{Package|sys-fs/dosfstools}} installed.
 ###i## umount /mnt/rpi
 }}
 
-== Transfer the SDCard to the Raspberry Pi and Reboot ==
+== Transfer the SDCard to the Raspberry Pi and Boot==
 == Enjoy! ==
