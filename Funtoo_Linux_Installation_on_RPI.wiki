@@ -332,7 +332,7 @@ zx_defconfig             - Build for zx
       flavor: core
      mix-ins: (not set)
 
-o
+
   NOTE: Meta-repo has not yet been cloned, so no kit information is available. Type ego sync to perform an initial
   clone of meta-repo.
 (chroot) ###i## exit
