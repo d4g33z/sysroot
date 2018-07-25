@@ -46,13 +46,12 @@ sysroot_install()
 
     if [ -d ${SYSROOT} ]; then
         if prompt_input_yN "backup previous sysroot to ${SYSROOT}.old"; then
-            #mv ${SYSROOT} ${SYSROOT}.old
             sysroot_unique_backup ${SYSROOT}
-        else
-            if prompt_input_yN "totally remove your previous sysroot"; then
-                rm -rf ${SYSROOT}
-            fi
         fi
+        if prompt_input_yN "totally remove your previous sysroot"; then
+            rm -rf ${SYSROOT}
+        fi
+        
     fi
     if [ ! -d ${SYSROOT} ]; then
         mkdir ${SYSROOT}
