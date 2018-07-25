@@ -100,7 +100,7 @@ We can use the following {{Package|sys-apps/sed}} code.
 }}
 
 ==== Set Up Root Password ====
-Here we interactively add a root password to log in with to $XC_STAGE3S/etc/shadow.
+Here we interactively add a root password to log in with to {{c|$SYSROOT/etc/shadow}}.
 {{warning|Occasionally this fails due to an unescaped sed control character in the password hash. Just try it until it works, or run the password generation separately from the shadow file editing, or actually fix it.}}
 {{console|body=
 ###i## sed -i "s/root\:\*/root\:`(openssl passwd -1)`/" $SYSROOT/etc/shadow
