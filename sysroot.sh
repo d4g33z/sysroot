@@ -18,9 +18,12 @@ for ((i=0; i< ${#INSTALL_VARS[@]}; i++)); do
 done;
 echo -e $XX
 
-get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelrelease;)}
-get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelversion;)}
-set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
+if prompt_input_yN "does this look right"; then
+    echo "Ok, running sysroot_install"
+else
+    echo "Fix it and try again"
+    return 1
+fi
 
 sysroot_install()
 {
@@ -360,7 +363,7 @@ EOF
             cat > /tmp/test_chroot.sh << EOF
 ego profile
 EOF
-            sysroot_run_in_chroot ${SYSROOT}/${CHOST} /tmp/test_chroot.sh
+            sysroot_run_in_chroot ${SYSROOT} /tmp/test_chroot.sh
         fi
         if prompt_input_yN "install distcc via QEMU chroot"; then
             cat > /tmp/install_distcc.sh << EOF
@@ -383,7 +386,7 @@ FEATURES=\"distcc distcc-pump\"
 distcc-config --set-hosts \"${DISTCC_REMOTE_HOSTS}\"
 EOF
 
-            sysroot_run_in_chroot ${SYSROOT_WORK}/${CHOST} /tmp/install_distcc.sh
+            sysroot_run_in_chroot ${SYSROOT} /tmp/install_distcc.sh
         fi
     fi
 
@@ -465,7 +468,7 @@ sysroot_chroot()
         return 1
     fi
     sysroot_mount $1 || return 1
-    chroot $1 /bin/sh --login
+    env -i HOME=/root TERM=$TERM /bin/chroot $1 /bin/sh --login
     umount $1/dev
     umount $1/proc
     umount $1/sys
@@ -474,13 +477,14 @@ sysroot_chroot()
 sysroot_run_in_chroot()
 {
     if [ $# -lt 2 ]; then
-        echo "usage: sysroot-chroot path file"
+        echo "usage: sysroot-chroot path shell_cmds_file"
         return 1
     fi
     cat $2 > $1/root/sysroot_run_in_chroot.sh
     sysroot_mount $1 || return 1
     chmod +x $1/root/sysroot_run_in_chroot.sh
-    chroot $1 /bin/sh -c "/bin/sh /root/sysroot_run_in_chroot.sh"
+    #chroot $1 /bin/sh -c "/bin/sh /root/sysroot_run_in_chroot.sh"
+    env -i HOME=/root TERM=$TERM /bin/chroot $1 /bin/sh /root/sysroot_run_in_chroot.sh
     rm $1/root/sysroot_run_in_chroot.sh
     umount $1/dev
     umount $1/proc
@@ -506,5 +510,9 @@ sysroot_mount()
     mkdir -p $1/sys  && mount --bind /sys $1/sys
 
 }
+
+get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelrelease;)}
+get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelversion;)}
+set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
 
 
