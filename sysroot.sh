@@ -194,7 +194,8 @@ EOF
             if [ ! -d /var/git/overlay/crossdev ]; then
                 mkdir -p /var/git/overlay
                 cd /var/git/overlay
-                echo $YEL"now in $PWD"
+                echo -e $YEL"now in $PWD"
+                echo -e $XX
                 git clone  https://github.com/funtoo/skeleton-overlay.git crossdev
                 rm -rf /var/git/overlay/crossdev/.git
                 echo "crossdev" > /var/git/overlay/crossdev/profiles/repo_name
@@ -210,7 +211,8 @@ EOF
             #Sparse Checkout Gentoo GCC Ebuilds
             if [ ! -d /var/git/overlay/crossdev/.git ]; then
                 cd /var/git/overlay/crossdev
-                echo $YEL"now in $PWD"
+                echo -e $YEL"now in $PWD"
+                echo -e $XX
                 git init
                 git remote add origin git://github.com/gentoo/gentoo.git
                 git config core.sparseCheckout true
@@ -269,7 +271,8 @@ EOF
         ################################################################################
         # Make the Default Config
         cd ${KERNEL_WORK}/linux
-        echo $YEL"now in $PWD"
+        echo -e $YEL"now in $PWD"
+        echo -e $XX
         if prompt_input_yN "make bcm2709_defconfig"; then
             make -j$(nproc) \
             ARCH=arm \
@@ -322,7 +325,8 @@ EOF
                 sysroot_unique_backup .config ${SYSROOT}/etc/kernels
             fi
         cd -
-        echo $YEL"now in $PWD"
+        echo -e $YEL"now in $PWD"
+        echo -e $XX
         fi
     fi
     ################################################################################
@@ -439,6 +443,7 @@ EOF
         umount /mnt/rpi/boot
         umount /mnt/rpi
     fi
+    cd -
 
 }
 
