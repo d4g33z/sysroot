@@ -40,7 +40,8 @@ sysroot_install()
     echo -e $XX
     SYSROOT=${SYSROOT_WORK}/${CHOST}
     STAGE3_ARCHIVE="/tmp/$(basename $STAGE3_URL)"
-    STAGE3_GPG=$STAGE3_ARCHIVE.gpg
+    STAGE3_GPG=`wget -qO- $STAGE3_ARCHIVE.gpg`
+    echo "$STAGE3_GPG"
 
     if [ -d ${SYSROOT} ]; then
         if prompt_input_yN "backup previous sysroot to ${SYSROOT}.old"; then
