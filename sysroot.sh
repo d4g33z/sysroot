@@ -356,9 +356,14 @@ EOF
             fi
 
         fi
-
+        if prompt_input_yN "test QEMU chroot"; then
+            cat > /tmp/test_chroot.sh << EOF
+ego profile
+EOF
+            sysroot_run_in_chroot $SYSROOT/$CHOST /tmp/test_chroot.sh
+        fi
         if prompt_input_yN "install distcc via QEMU chroot"; then
-            cat > prepare.sh << EOF
+            cat > /tmp/install_distcc.sh << EOF
 #!/bin/sh
 echo Emerging distcc
 emerge -q distcc
@@ -378,7 +383,7 @@ FEATURES=\"distcc distcc-pump\"
 distcc-config --set-hosts \"${DISTCC_REMOTE_HOSTS}\"
 EOF
 
-            sysroot_run_in_chroot $SYSROOT_WORK/$CHOST prepare.sh
+            sysroot_run_in_chroot $SYSROOT_WORK/$CHOST /tmp/install_distcc.sh
         fi
     fi
 
