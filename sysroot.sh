@@ -7,6 +7,7 @@ UL='\e[4m'
 RED='\e[31m'
 GRE='\e[32m'
 MAG='\e[35m'
+YEL='\e[33m'
 
 CWD="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 source ${CWD}/config
@@ -45,7 +46,8 @@ sysroot_install()
 
     if [ -d ${SYSROOT} ]; then
         if prompt_input_yN "backup previous sysroot to ${SYSROOT}.old"; then
-            mv ${SYSROOT} ${SYSROOT}.old
+            #mv ${SYSROOT} ${SYSROOT}.old
+            sysroot_unique_backup ${SYSROOT}
         else
             if prompt_input_yN "totally remove your previous sysroot"; then
                 rm -rf ${SYSROOT}
@@ -67,7 +69,8 @@ sysroot_install()
             if [ "$(gpg --trust-model always --verify ${STAGE3_GPG} ${STAGE3_ARCHIVE} 2>&1 | grep BAD)" != "" ]; then
                 echo "gpg verification failed. Download a new stage 3 archive"
                 if prompt_input_yN "download new stage3-latest for ARM architecture"; then
-                    [ -f ${STAGE3_ARCHIVE} ] && mv ${STAGE3_ARCHIVE} ${STAGE3_ARCHIVE}.bak
+                    [ -f ${STAGE3_ARCHIVE} ] && sysroot_unique_backup ${STAGE3_ARCHIVE}
+                    #[ -f ${STAGE3_ARCHIVE} ] && mv ${STAGE3_ARCHIVE} ${STAGE3_ARCHIVE}.bak
                     wget ${STAGE3_URL} -O ${STAGE3_ARCHIVE}
                 fi
             fi
@@ -191,6 +194,7 @@ EOF
             if [ ! -d /var/git/overlay/crossdev ]; then
                 mkdir -p /var/git/overlay
                 cd /var/git/overlay
+                echo $YEL"now in $PWD"
                 git clone  https://github.com/funtoo/skeleton-overlay.git crossdev
                 rm -rf /var/git/overlay/crossdev/.git
                 echo "crossdev" > /var/git/overlay/crossdev/profiles/repo_name
@@ -206,6 +210,7 @@ EOF
             #Sparse Checkout Gentoo GCC Ebuilds
             if [ ! -d /var/git/overlay/crossdev/.git ]; then
                 cd /var/git/overlay/crossdev
+                echo $YEL"now in $PWD"
                 git init
                 git remote add origin git://github.com/gentoo/gentoo.git
                 git config core.sparseCheckout true
@@ -264,6 +269,7 @@ EOF
         ################################################################################
         # Make the Default Config
         cd ${KERNEL_WORK}/linux
+        echo $YEL"now in $PWD"
         if prompt_input_yN "make bcm2709_defconfig"; then
             make -j$(nproc) \
             ARCH=arm \
@@ -310,24 +316,13 @@ EOF
 
             ################################################################################
             # Backup Kernel Config
-            if prompt_input_yN "save new kernel config to $SYSROOT/etc/kernels"; then
+            if prompt_input_yN "backup new kernel config"; then
 
                 mkdir -p ${SYSROOT}/etc/kernels
-
-                today="$( date +"%Y%m%d" )"
-                number=0
-
-                while test -e "${SYSROOT}/etc/kernels/config-`get_kernel_version`-$today$suffix.txt"; do
-                    (( ++number ))
-                    suffix="$( printf -- '-%02d' "$number" )"
-                done
-
-                fname="${SYSROOT}/etc/kernels/config-`get_kernel_version`-$today$suffix.txt"
-
-                printf 'Will use "%s" as filename\n' $fname
-                cp .config $fname
+                sysroot_unique_backup .config ${SYSROOT}/etc/kernels
             fi
         cd -
+        echo $YEL"now in $PWD"
         fi
     fi
     ################################################################################
@@ -509,6 +504,38 @@ sysroot_mount()
 
 }
 
+sysroot_unique_backup()
+{
+
+    if [ $# -lt 1 ]; then
+        echo "usage: sysroot_unique_backup path [desination]"
+        return 1
+    fi
+
+    today="$( date +"%Y%m%d" )"
+    number=0
+
+
+    if [ -z $2 ]; then
+        while test -e "$1-$today$suffix.txt"; do
+            (( ++number ))
+            suffix="$( printf -- '-%02d' "$number" )"
+        done
+
+        fname="$1-$today$suffix.txt"
+
+    else
+        while test -e "$2/`basename $1`-$today$suffix.txt"; do
+            (( ++number ))
+            suffix="$( printf -- '-%02d' "$number" )"
+        done
+
+        fname="$2/`basename $1`-$today$suffix.txt"
+
+    fi
+
+    cp -r $1 "$fname"
+}
 get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelrelease;)}
 get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelversion;)}
 set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
