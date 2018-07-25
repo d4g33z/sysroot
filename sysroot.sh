@@ -40,8 +40,8 @@ sysroot_install()
     echo -e $XX
     SYSROOT=${SYSROOT_WORK}/${CHOST}
     STAGE3_ARCHIVE="/tmp/$(basename $STAGE3_URL)"
-    STAGE3_GPG=`wget -qO- $STAGE3_ARCHIVE.gpg`
-    echo "$STAGE3_GPG"
+    #STAGE3_GPG="$(wget -qO- ${STAGE3_URL}.gpg)"
+    STAGE3_GPG=${STAGE3_ARCHIVE}.gpg
 
     if [ -d ${SYSROOT} ]; then
         if prompt_input_yN "backup previous sysroot to ${SYSROOT}.old"; then
@@ -54,13 +54,27 @@ sysroot_install()
     fi
     if [ ! -d ${SYSROOT} ]; then
         mkdir ${SYSROOT}
-        if prompt_input_yN "download stage3-latest for ARM architecture"; then
-            [ -f ${STAGE3_ARCHIVE} ] && mv ${STAGE3_ARCHIVE} ${STAGE3_ARCHIVE}.bak
-            wget ${STAGE3_URL} -O ${STAGE3_ARCHIVE}
-        fi
+        if [ -f ${STAGE3_ARCHIVE} ]; then
+            wget ${STAGE3_URL}.gpg -O ${STAGE3_GPG}
+            #check for drobbins trust
+            if [ "$(gpg --list-public-keys | grep D3B948F82EE8B4020A0410789A658306E986E8EE -)" = "" ]; then
+                gpg --recv-key E986E8EE
+            fi
+            #check for arm32 trust
+            if [ "$(gpg --list-public-keys | grep 38E84AD53B01590BA6785E882A7B0B2EEEE54A43 -)" = "" ]; then
+                gpg --recv-key EEE54A43 
+            fi
+            if [ "$(gpg --trust-model always --verify ${STAGE3_GPG} ${STAGE3_ARCHIVE} 2>&1 | grep BAD)" != "" ]; then
+                echo "gpg verification failed. Download a new stage 3 archive"
+                if prompt_input_yN "download new stage3-latest for ARM architecture"; then
+                    [ -f ${STAGE3_ARCHIVE} ] && mv ${STAGE3_ARCHIVE} ${STAGE3_ARCHIVE}.bak
+                    wget ${STAGE3_URL} -O ${STAGE3_ARCHIVE}
+                fi
+            fi
 
-        if prompt_input_yN "extract ${STAGE3_ARCHIVE} in ${SYSROOT}"; then
-            tar xpfv ${STAGE3_ARCHIVE} -C ${SYSROOT}
+            if prompt_input_yN "extract ${STAGE3_ARCHIVE} in ${SYSROOT}"; then
+                tar xpfv ${STAGE3_ARCHIVE} -C ${SYSROOT}
+            fi
         fi
     fi
 
