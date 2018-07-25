@@ -48,9 +48,6 @@ sysroot_install()
         else
             if prompt_input_yN "totally remove your previous sysroot"; then
                 rm -rf ${SYSROOT}
-            else
-                echo "you have to remove or backup ${SYSROOT} before proceeding"
-                return 1
             fi
         fi
     fi
