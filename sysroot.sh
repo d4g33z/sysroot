@@ -312,56 +312,53 @@ EOF
 
         if prompt_input_yN "install a QEMU chroot"; then
 
-            if prompt_input_yN "install distcc to the sysroot"; then
-
-                if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
-                    modprobe kvm_intel
+            if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
+                modprobe kvm_intel
+                if [ $? -ne 0 ]; then
+                    echo "error: can't load kvm_intel kernel module"
+                    modprobe kvm_amd
                     if [ $? -ne 0 ]; then
-                        echo "error: can't load kvm_intel kernel module"
-                        modprobe kvm_amd
-                        if [ $? -ne 0 ]; then
-                            echo "error: can't load kvm_amd kernel module"
-                            echo "please consult https://www.funtoo.org/KVM and try again"
-                            return 1
-                        fi
-                    fi
-                    if ["$(groups $USER | grep kvm)" = ""]; then
-                        echo "add yourself to the kvm group and try again"
+                        echo "error: can't load kvm_amd kernel module"
+                        echo "please consult https://www.funtoo.org/KVM and try again"
                         return 1
                     fi
-                    echo "loaded kvm kernel module"
                 fi
-
-                if [ "$(which qemu-arm 2>/dev/null)" != "/usr/bin/qemu-arm" ]; then
-
-                    echo "app-emulation/qemu static-user" > /etc/portage/package.use/qemu
-                    echo "dev-libs/libpcre static-libs" >> /etc/portage/package.use/qemu
-                    echo "sys-apps/attr static-libs" >> /etc/portage/package.use/qemu
-                    echo "dev-libs/glib static-libs" >> /etc/portage/package.use/qemu
-                    echo "sys-libs/zlib static-libs" >> /etc/portage/package.use/qemu
-                    if [ "$(grep QEMU_SOFT_MMU_TARGETS /etc/portage/make.conf)" = "" ]; then
-                        echo "QEMU_SOFTMMU_TARGETS=\"arm\"" >> /etc/portage/make.conf
-                    else
-                        echo "QEMU_SOFTMMU_TARGETS=\"\${QEMU_SOFTMMU_TARGETS} arm\"" >> /etc/portage/make.conf
-                    fi
-
-                    if [ "$(grep QEMU_USER_TARGETS /etc/portage/make.conf)" = "" ]; then
-                        echo 'QEMU_USER_TARGETS="arm"' >> /etc/portage/make.conf
-                    else
-                        echo 'QEMU_USER_TARGETS="${QEMU_USER_TARGETS} arm"' >> /etc/portage/make.conf
-                    fi
-
-                    emerge -q app-emulation/qemu
-
-                    quickpkg app-emulation/qemu
-                    ROOT=${SYSROOT}/ emerge -q --usepkgonly --oneshot --nodeps qemu
+                if ["$(groups $USER | grep kvm)" = ""]; then
+                    echo "add yourself to the kvm group and try again"
+                    return 1
                 fi
-
+                echo "loaded kvm kernel module"
             fi
+
+            if [ "$(which qemu-arm 2>/dev/null)" != "/usr/bin/qemu-arm" ]; then
+
+                echo "app-emulation/qemu static-user" > /etc/portage/package.use/qemu
+                echo "dev-libs/libpcre static-libs" >> /etc/portage/package.use/qemu
+                echo "sys-apps/attr static-libs" >> /etc/portage/package.use/qemu
+                echo "dev-libs/glib static-libs" >> /etc/portage/package.use/qemu
+                echo "sys-libs/zlib static-libs" >> /etc/portage/package.use/qemu
+                if [ "$(grep QEMU_SOFT_MMU_TARGETS /etc/portage/make.conf)" = "" ]; then
+                    echo "QEMU_SOFTMMU_TARGETS=\"arm\"" >> /etc/portage/make.conf
+                else
+                    echo "QEMU_SOFTMMU_TARGETS=\"\${QEMU_SOFTMMU_TARGETS} arm\"" >> /etc/portage/make.conf
+                fi
+
+                if [ "$(grep QEMU_USER_TARGETS /etc/portage/make.conf)" = "" ]; then
+                    echo 'QEMU_USER_TARGETS="arm"' >> /etc/portage/make.conf
+                else
+                    echo 'QEMU_USER_TARGETS="${QEMU_USER_TARGETS} arm"' >> /etc/portage/make.conf
+                fi
+
+                emerge -q app-emulation/qemu
+
+                quickpkg app-emulation/qemu
+                ROOT=${SYSROOT}/ emerge -q --usepkgonly --oneshot --nodeps qemu
+            fi
+
         fi
 
         if prompt_input_yN "install distcc via QEMU chroot"; then
-            cat > ${SYSROOT}/prepare.sh << EOF
+            cat > prepare.sh << EOF
 #!/bin/sh
 echo Emerging distcc
 emerge -q distcc
@@ -381,12 +378,7 @@ FEATURES=\"distcc distcc-pump\"
 distcc-config --set-hosts \"${DISTCC_REMOTE_HOSTS}\"
 EOF
 
-            sysroot_mount ${SYSROOT}
-            chmod +x ${SYSROOT}/prepare.sh
-            chroot ${SYSROOT} /bin/sh -c "/bin/sh /prepare.sh"
-            rm ${SYSROOT}/prepare.sh
-            umount -Rl ${SYSROOT}/{proc,sys,dev}
-
+            sysroot_run_in_chroot $SYSROOT_WORK/$CHOST prepare.sh
         fi
     fi
 
@@ -474,6 +466,23 @@ sysroot_chroot()
     umount $1/sys
 }
 
+sysroot_run_in_chroot()
+{
+    if [ $# -lt 2 ]; then
+        echo "usage: sysroot-chroot path file"
+        return 1
+    fi
+    cat $2 > $1/root/sysroot_run_in_chroot.sh
+    sysroot_mount $1 || return 1
+    chmod +x $1/root/sysroot_run_in_chroot.sh
+    chroot $1 /bin/sh -c "/bin/sh /root/sysroot_run_in_chroot.sh"
+    rm $1/root/sysroot_run_in_chroot.sh
+    umount $1/dev
+    umount $1/proc
+    umount $1/sys
+}
+
+
 sysroot_mount()
 {
     if [ $# -lt 1 ]; then
@@ -490,6 +499,7 @@ sysroot_mount()
     mkdir -p $1/dev  && mount --bind /dev $1/dev
     mkdir -p $1/proc && mount --bind /proc $1/proc
     mkdir -p $1/sys  && mount --bind /sys $1/sys
+
 }
 
 
