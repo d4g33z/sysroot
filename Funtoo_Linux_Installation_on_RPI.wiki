@@ -406,16 +406,16 @@ Make sure you have {{Package|sys-fs/dosfstools}} installed.
 
 == Deploy Installation to SDCard ==
 {{console|body=
-###i## mkdir -p /mnt/funtoo
-###i## mount ${SDCARD}2 /mnt/funtoo
-###i## mkdir -p /mnt/funtoo/boot
-###i## mount ${SDCARD}1 /mnt/funtoo/boot
+###i## mkdir -p /mnt/rpi
+###i## mount ${SDCARD}2 /mnt/rpi
+###i## mkdir -p /mnt/rpi/boot
+###i## mount ${SDCARD}1 /mnt/rpi/boot
 ###i## rsync --archive \
 ##i##      --verbose \
 ##i##      --progress \
 ##i##      --exclude "var/git/*" \
 ##i##    ${SYSROOT}/{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev} \
-##i##    /mnt/funtoo/
+##i##    /mnt/rpi
 ###i## umount /mnt/rpi/boot
 ###i## umount /mnt/rpi
 }}
