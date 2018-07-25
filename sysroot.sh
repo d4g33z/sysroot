@@ -304,83 +304,91 @@ EOF
         cd -
         fi
     fi
-
     ################################################################################
-#    echo -e $UL$MAG"Install Distcc via a QEMU Chroot"
-#    echo -e $XX
-#    if prompt_input_yN "install distcc to the sysroot"; then
-#
-#        if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
-#            modprobe kvm_intel
-#            if [ $? -ne 0 ]; then
-#                echo "error: can't load kvm_intel kernel module"
-#                modprobe kvm_amd
-#                if [ $? -ne 0 ]; then
-#                    echo "error: can't load kvm_amd kernel module"
-#                    echo "please consult https://www.funtoo.org/KVM and try again"
-#                    return 1
-#                fi
-#            fi
-#            if ["$(groups $USER | grep kvm)" = ""]; then
-#                echo "add yourself to the kvm group and try again"
-#                return 1
-#            fi
-#            echo "loaded kvm kernel module"
-#        fi
-#
-#        if [ "$(which qemu-arm 2>/dev/null)" != "/usr/bin/qemu-arm" ]; then
-#
-#            echo "app-emulation/qemu static-user" > /etc/portage/package.use/qemu
-#            echo "dev-libs/libpcre static-libs" >> /etc/portage/package.use/qemu
-#            echo "sys-apps/attr static-libs" >> /etc/portage/package.use/qemu
-#            echo "dev-libs/glib static-libs" >> /etc/portage/package.use/qemu
-#            echo "sys-libs/zlib static-libs" >> /etc/portage/package.use/qemu
-#            if [ "$(grep QEMU_SOFT_MMU_TARGETS /etc/portage/make.conf)" = "" ]; then
-#                echo "QEMU_SOFTMMU_TARGETS=\"arm\"" >> /etc/portage/make.conf
-#            else
-#                echo "QEMU_SOFTMMU_TARGETS=\"\${QEMU_SOFTMMU_TARGETS} arm\"" >> /etc/portage/make.conf
-#            fi
-#
-#            if [ "$(grep QEMU_USER_TARGETS /etc/portage/make.conf)" = "" ]; then
-#                echo 'QEMU_USER_TARGETS="arm"' >> /etc/portage/make.conf
-#            else
-#                echo 'QEMU_USER_TARGETS="${QEMU_USER_TARGETS} arm"' >> /etc/portage/make.conf
-#            fi
-#
-#            emerge -q app-emulation/qemu
-#
-#            quickpkg app-emulation/qemu
-#            ROOT=${SYSROOT}/ emerge -q --usepkgonly --oneshot --nodeps qemu
-#        fi
-#
-#
-#        cat > ${SYSROOT}/prepare.sh << EOF
-##!/bin/sh
-#echo Emerging distcc
-#emerge -q distcc
-#echo Setting distcc symlinks
-#cd /usr/lib/distcc/bin
-#rm c++ g++ gcc cc
-#cat > ${CHOST} << EOF2
-#chmod a+x ${CHOST}-wrapper
-#ln -s ${CHOST}-wrapper cc
-#ln -s ${CHOST}-wrapper gcc
-#ln -s ${CHOST}-wrapper g++
-#ln -s ${CHOST}-wrapper c++
-#EOF2
-#cat > /etc/portage/make.conf << EOF2
-#MAKEOPTS = j4 -l${DISTCC_REMOTE_JOBS}
-#FEATURES=\"distcc distcc-pump\"
-#distcc-config --set-hosts \"${DISTCC_REMOTE_HOSTS}\"
-#EOF
-#
-#        sysroot_mount ${SYSROOT}
-#        chmod +x ${SYSROOT}/prepare.sh
-#        chroot ${SYSROOT} /bin/sh -c "/bin/sh /prepare.sh"
-#        rm ${SYSROOT}/prepare.sh
-#        umount -Rl ${SYSROOT}/{proc,sys,dev}
-#
-#    fi
+    echo -e $UL$MAG"Use QEMU"
+    echo -e $XX
+
+    if prompt_input_yN "use QEMU"; then
+
+        if prompt_input_yN "install a QEMU chroot"; then
+
+            if prompt_input_yN "install distcc to the sysroot"; then
+
+                if [ "$(lsmod | grep -E kvm_\(intel\|amd\))" = "" ]; then
+                    modprobe kvm_intel
+                    if [ $? -ne 0 ]; then
+                        echo "error: can't load kvm_intel kernel module"
+                        modprobe kvm_amd
+                        if [ $? -ne 0 ]; then
+                            echo "error: can't load kvm_amd kernel module"
+                            echo "please consult https://www.funtoo.org/KVM and try again"
+                            return 1
+                        fi
+                    fi
+                    if ["$(groups $USER | grep kvm)" = ""]; then
+                        echo "add yourself to the kvm group and try again"
+                        return 1
+                    fi
+                    echo "loaded kvm kernel module"
+                fi
+
+                if [ "$(which qemu-arm 2>/dev/null)" != "/usr/bin/qemu-arm" ]; then
+
+                    echo "app-emulation/qemu static-user" > /etc/portage/package.use/qemu
+                    echo "dev-libs/libpcre static-libs" >> /etc/portage/package.use/qemu
+                    echo "sys-apps/attr static-libs" >> /etc/portage/package.use/qemu
+                    echo "dev-libs/glib static-libs" >> /etc/portage/package.use/qemu
+                    echo "sys-libs/zlib static-libs" >> /etc/portage/package.use/qemu
+                    if [ "$(grep QEMU_SOFT_MMU_TARGETS /etc/portage/make.conf)" = "" ]; then
+                        echo "QEMU_SOFTMMU_TARGETS=\"arm\"" >> /etc/portage/make.conf
+                    else
+                        echo "QEMU_SOFTMMU_TARGETS=\"\${QEMU_SOFTMMU_TARGETS} arm\"" >> /etc/portage/make.conf
+                    fi
+
+                    if [ "$(grep QEMU_USER_TARGETS /etc/portage/make.conf)" = "" ]; then
+                        echo 'QEMU_USER_TARGETS="arm"' >> /etc/portage/make.conf
+                    else
+                        echo 'QEMU_USER_TARGETS="${QEMU_USER_TARGETS} arm"' >> /etc/portage/make.conf
+                    fi
+
+                    emerge -q app-emulation/qemu
+
+                    quickpkg app-emulation/qemu
+                    ROOT=${SYSROOT}/ emerge -q --usepkgonly --oneshot --nodeps qemu
+                fi
+
+            fi
+        fi
+
+        if prompt_input_yN "install distcc via QEMU chroot"; then
+            cat > ${SYSROOT}/prepare.sh << EOF
+#!/bin/sh
+echo Emerging distcc
+emerge -q distcc
+echo Setting distcc symlinks
+cd /usr/lib/distcc/bin
+rm c++ g++ gcc cc
+cat > ${CHOST} << EOF2
+chmod a+x ${CHOST}-wrapper
+ln -s ${CHOST}-wrapper cc
+ln -s ${CHOST}-wrapper gcc
+ln -s ${CHOST}-wrapper g++
+ln -s ${CHOST}-wrapper c++
+EOF2
+cat > /etc/portage/make.conf << EOF2
+MAKEOPTS = j4 -l${DISTCC_REMOTE_JOBS}
+FEATURES=\"distcc distcc-pump\"
+distcc-config --set-hosts \"${DISTCC_REMOTE_HOSTS}\"
+EOF
+
+            sysroot_mount ${SYSROOT}
+            chmod +x ${SYSROOT}/prepare.sh
+            chroot ${SYSROOT} /bin/sh -c "/bin/sh /prepare.sh"
+            rm ${SYSROOT}/prepare.sh
+            umount -Rl ${SYSROOT}/{proc,sys,dev}
+
+        fi
+    fi
 
     ################################################################################
     echo -e $UL$MAG"Parition and Format SDCard"
@@ -407,7 +415,6 @@ ${SDCARD}1 : start=        2048, size=     1048576, type=c
 ${SDCARD}2 : start=     1050624, type=83
 EOF
         fi
-
         ################################################################################
         # Format SDCard
         if prompt_input_yN "format ${SDCARD}"; then
@@ -415,7 +422,6 @@ EOF
             mkfs.vfat ${SDCARD}1
         fi
     fi
-
     ################################################################################
     echo -e $UL$MAG"Deploy Installation to SDCard"
     echo -e $XX
