@@ -7,9 +7,7 @@ UL='\e[4m'
 RED='\e[31m'
 GRE='\e[32m'
 MAG='\e[35m'
-################################################################################
-echo -e $UL$MAG"Create Your Installation Settings"
-echo -e $XX
+
 CWD="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 source ${CWD}/config
 
@@ -19,6 +17,10 @@ sysroot_install()
         echo "error: must run as root"
         return 1
     fi
+
+    ################################################################################
+    echo -e $UL$MAG"Create Your Installation Settings"
+    echo -e $XX
 
     for ((i=0; i< ${#INSTALL_VARS[@]}; i++)); do
             echo -e $BO${INSTALL_VARS[$i]} = ${!INSTALL_VARS[$i]};
