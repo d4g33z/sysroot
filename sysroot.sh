@@ -49,19 +49,21 @@ sysroot_install()
             if prompt_input_yN "totally remove your previous sysroot"; then
                 rm -rf ${SYSROOT}
             else
-                echo "you have remove or backup ${SYSROOT} before proceeding"
+                echo "you have to remove or backup ${SYSROOT} before proceeding"
                 return 1
             fi
         fi
     fi
-    mkdir ${SYSROOT}
-    if prompt_input_yN "download stage3-latest for ARM architecture"; then
-        [ -f ${STAGE3_ARCHIVE} ] && mv ${STAGE3_ARCHIVE} ${STAGE3_ARCHIVE}.bak
-        wget ${STAGE3_URL} -O ${STAGE3_ARCHIVE}
-    fi
+    if [ ! -d ${SYSROOT} ]; then
+        mkdir ${SYSROOT}
+        if prompt_input_yN "download stage3-latest for ARM architecture"; then
+            [ -f ${STAGE3_ARCHIVE} ] && mv ${STAGE3_ARCHIVE} ${STAGE3_ARCHIVE}.bak
+            wget ${STAGE3_URL} -O ${STAGE3_ARCHIVE}
+        fi
 
-    if prompt_input_yN "extract ${STAGE3_ARCHIVE} in ${SYSROOT}"; then
-        tar xpfv ${STAGE3_ARCHIVE} -C ${SYSROOT}
+        if prompt_input_yN "extract ${STAGE3_ARCHIVE} in ${SYSROOT}"; then
+            tar xpfv ${STAGE3_ARCHIVE} -C ${SYSROOT}
+        fi
     fi
 
     ################################################################################
