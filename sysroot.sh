@@ -366,29 +366,6 @@ ego profile
 EOF
             sysroot_run_in_chroot ${SYSROOT} /tmp/test_chroot.sh
         fi
-        if prompt_input_yN "install distcc via QEMU chroot"; then
-            cat > /tmp/install_distcc.sh << EOF
-#!/bin/sh
-echo Emerging distcc
-emerge -q distcc
-echo Setting distcc symlinks
-cd /usr/lib/distcc/bin
-rm c++ g++ gcc cc
-cat > ${CHOST} << EOF2
-chmod a+x ${CHOST}-wrapper
-ln -s ${CHOST}-wrapper cc
-ln -s ${CHOST}-wrapper gcc
-ln -s ${CHOST}-wrapper g++
-ln -s ${CHOST}-wrapper c++
-EOF2
-cat > /etc/portage/make.conf << EOF2
-MAKEOPTS = j4 -l${DISTCC_REMOTE_JOBS}
-FEATURES=\"distcc distcc-pump\"
-distcc-config --set-hosts \"${DISTCC_REMOTE_HOSTS}\"
-EOF
-
-            sysroot_run_in_chroot ${SYSROOT} /tmp/install_distcc.sh
-        fi
     fi
 
     ################################################################################
