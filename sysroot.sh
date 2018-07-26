@@ -436,7 +436,7 @@ EOF
               --recursive \
               --exclude "var/git/*" \
             ${RSYNC_DELETE} \
-            ${SYSROOT}/{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev} \
+            ${SYSROOT}/{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev,proc,sys} \
             /mnt/rpi/
 
         umount /mnt/rpi/boot
