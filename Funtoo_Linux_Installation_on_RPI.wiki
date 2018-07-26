@@ -414,7 +414,7 @@ Make sure you have {{Package|sys-fs/dosfstools}} installed.
 ##i##      --verbose \
 ##i##      --progress \
 ##i##      --exclude "var/git/*" \
-##i##    ${SYSROOT}/{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev} \
+##i##    ${SYSROOT}/{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev,proc,sys} \
 ##i##    /mnt/rpi
 ###i## umount /mnt/rpi/boot
 ###i## umount /mnt/rpi
