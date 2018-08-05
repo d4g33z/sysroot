@@ -423,10 +423,12 @@ EOF
     echo -e $XX
     if prompt_input_yN "deploy ${SYSROOT} to ${SDCARD}"; then
 
-        mkdir -p /mnt/rpi
-        mount ${SDCARD}2 /mnt/rpi
-        mkdir -p /mnt/rpi/boot
-        mount ${SDCARD}1 /mnt/rpi/boot
+#        mkdir -p /mnt/rpi
+#        mount ${SDCARD}2 /mnt/rpi
+#        mkdir -p /mnt/rpi/boot
+#        mount ${SDCARD}1 /mnt/rpi/boot
+
+        sysroot_mount_sdcard ${SDCARD} /mnt/rpi
 
         if prompt_input_yN "use --delete on rsync for ${SDCARD} files"; then
             RSYNC_DELETE=--delete
@@ -439,8 +441,11 @@ EOF
             ${SYSROOT}/{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev,proc,sys} \
             /mnt/rpi/
 
-        umount /mnt/rpi/boot
-        umount /mnt/rpi
+#        umount /mnt/rpi/boot
+#        umount /mnt/rpi
+
+        sysroot_umount_sdcard /mnt/rpi
+
     fi
     cd -
 
@@ -540,6 +545,23 @@ sysroot_unique_backup()
 
     cp -r $1 "$fname"
 }
+
+sysroot_mount_sdcard()
+{
+    mkdir -p ${2}
+    mount ${1}2 ${2}
+    mkdir -p ${2}/boot
+    mount ${1}1 ${2}/boot
+
+}
+
+sysroot_umount_sdcard()
+{
+    umount ${1}/boot
+    umount ${1}
+
+}
+
 get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelrelease;)}
 get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelversion;)}
 set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
