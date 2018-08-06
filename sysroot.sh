@@ -68,16 +68,20 @@ sysroot_install()
             if [ "$(gpg --trust-model always --verify ${STAGE3_GPG} ${STAGE3_ARCHIVE} 2>&1 | grep BAD)" != "" ]; then
                 echo "gpg verification failed. Download a new stage 3 archive"
                 if prompt_input_yN "download new stage3-latest for ARM architecture"; then
-                    [ -f ${STAGE3_ARCHIVE} ] && sysroot_unique_backup ${STAGE3_ARCHIVE}
-                    #[ -f ${STAGE3_ARCHIVE} ] && mv ${STAGE3_ARCHIVE} ${STAGE3_ARCHIVE}.bak
+                    sysroot_unique_backup ${STAGE3_ARCHIVE}
                     wget ${STAGE3_URL} -O ${STAGE3_ARCHIVE}
                 fi
             fi
-
-            if prompt_input_yN "extract ${STAGE3_ARCHIVE} in ${SYSROOT}"; then
-                tar xpfv ${STAGE3_ARCHIVE} -C ${SYSROOT}
+        else
+            if prompt_input_yN "download new stage3-latest for ARM architecture"; then
+                wget ${STAGE3_URL} -O ${STAGE3_ARCHIVE}
             fi
+
         fi
+        if prompt_input_yN "extract ${STAGE3_ARCHIVE} in ${SYSROOT}"; then
+            tar xpfv ${STAGE3_ARCHIVE} -C ${SYSROOT}
+        fi
+
     fi
 
     ################################################################################
@@ -471,9 +475,10 @@ sysroot_chroot()
     fi
     sysroot_mount $1 || return 1
     env -i HOME=/root TERM=$TERM /bin/chroot $1 /bin/sh --login
-    umount $1/dev
-    umount $1/proc
-    umount $1/sys
+    sysroot_umount $1 || return 1
+#    umount $1/dev
+#    umount $1/proc
+#    umount $1/sys
 }
 
 sysroot_run_in_chroot()
@@ -488,9 +493,10 @@ sysroot_run_in_chroot()
     #chroot $1 /bin/sh -c "/bin/sh /root/sysroot_run_in_chroot.sh"
     env -i HOME=/root TERM=$TERM /bin/chroot $1 /bin/sh /root/sysroot_run_in_chroot.sh
     rm $1/root/sysroot_run_in_chroot.sh
-    umount $1/dev
-    umount $1/proc
-    umount $1/sys
+#    umount $1/dev
+#    umount $1/proc
+#    umount $1/sys
+    sysroot_umount $1 || return 1
 }
 
 
@@ -513,6 +519,14 @@ sysroot_mount()
 
 }
 
+sysroot_umount()
+{
+
+    umount $1/dev
+    umount $1/proc
+    umount $1/sys
+}
+
 sysroot_unique_backup()
 {
 
@@ -531,7 +545,7 @@ sysroot_unique_backup()
             suffix="$( printf -- '-%02d' "$number" )"
         done
 
-        fname="$1-$today$suffix.txt"
+        fname="$1-$today$suffix"
 
     else
         while test -e "$2/`basename $1`-$today$suffix.txt"; do
