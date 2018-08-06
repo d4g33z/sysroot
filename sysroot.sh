@@ -474,11 +474,8 @@ sysroot_chroot()
         return 1
     fi
     sysroot_mount $1 || return 1
-    env -i HOME=/root TERM=$TERM /bin/chroot $1 /bin/sh --login
+    env -i HOME=/root TERM=$TERM /bin/chroot $1 bash -l
     sysroot_umount $1 || return 1
-#    umount $1/dev
-#    umount $1/proc
-#    umount $1/sys
 }
 
 sysroot_run_in_chroot()
@@ -490,12 +487,8 @@ sysroot_run_in_chroot()
     cat $2 > $1/root/sysroot_run_in_chroot.sh
     sysroot_mount $1 || return 1
     chmod +x $1/root/sysroot_run_in_chroot.sh
-    #chroot $1 /bin/sh -c "/bin/sh /root/sysroot_run_in_chroot.sh"
     env -i HOME=/root TERM=$TERM /bin/chroot $1 /bin/sh /root/sysroot_run_in_chroot.sh
     rm $1/root/sysroot_run_in_chroot.sh
-#    umount $1/dev
-#    umount $1/proc
-#    umount $1/sys
     sysroot_umount $1 || return 1
 }
 
