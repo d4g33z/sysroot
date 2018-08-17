@@ -405,15 +405,7 @@ EOF
         ################################################################################
         # Write Parition Scheme to SDCard
         if prompt_input_yN "write partition scheme to ${SDCARD}"; then
-            if [ "$(mount | grep ${SDCARD})" != "" ]; then
-                umount -Rl ${SDCARD}
-            fi
-            sfdisk --no-reread --wipe always ${SDCARD} << EOF
-label: dos
-unit: sectors
-${SDCARD}1 : start=        2048, size=     1048576, type=c
-${SDCARD}2 : start=     1050624, type=83
-EOF
+            sysroot_partition_sdcard
         fi
         ################################################################################
         # Format SDCard
@@ -567,6 +559,31 @@ sysroot_umount_sdcard()
     umount ${1}/boot
     umount ${1}
 
+}
+
+sysroot_partition_sdcard()
+{
+
+    SDCARD=/dev/${SDCARD_DEV}
+
+    if [ "$(mount | grep ${SDCARD})" != "" ]; then
+        umount -Rl ${SDCARD}
+    fi
+    if [ ! -z "$1" ]; then
+        sfdisk --no-reread --wipe always ${SDCARD} << EOF
+label: dos
+unit: sectors
+${SDCARD}1 : start=        2048, size=     1048576, type=c
+${SDCARD}2 : start=     1050624, size=          $1, type=83
+EOF
+    else
+        sfdisk --no-reread --wipe always ${SDCARD} << EOF
+label: dos
+unit: sectors
+${SDCARD}1 : start=        2048, size=     1048576, type=c
+${SDCARD}2 : start=     1050624, type=83
+EOF
+    fi
 }
 
 get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelrelease;)}
