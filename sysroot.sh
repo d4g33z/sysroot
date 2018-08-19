@@ -491,9 +491,9 @@ sysroot_mount()
         echo "usage: sysroot-mount path"
         return 1
     fi
-    if [ "$(mount | grep $1)" != "" ]; then
-        return 0
-    fi
+#    if [ "$(mount | grep $1)" != "" ]; then
+#        return 0
+#    fi
     if [ "$(/etc/init.d/qemu-binfmt status | grep started)" = "" ]; then
         /etc/init.d/qemu-binfmt start
     fi
