@@ -5,11 +5,12 @@ KERNEL_WORK=/mnt/shared/rpi_kernel
 RPI_KERN_BRANCH=rpi-4.14.y
 
 SYSROOT_WORK=/mnt/shared/sysroots
-STAGE3_URL=http://ftp.osuosl.org/pub/funtoo/funtoo-current/arm-32bit/raspi3/stage3-latest.tar.xz
+STAGE3_URL=https://build.funtoo.org/1.3-release-std/arm-32bit/raspi3/2019-01-25/stage3-raspi3-1.3-release-std-2019-01-25.tar.xz
 CHOST=armv7a-hardfloat-linux-gnueabi
 CFLAGS="-O2 -pipe -march=armv7-a -mtune=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard"
 
 #SDCARD_DEV=mmcblk0p
 SDCARD_DEV=sdb
+#SDCARD_DEV=sde
 
 INSTALL_VARS=(KERNEL_WORK RPI_KERN_BRANCH SYSROOT_WORK STAGE3_URL CHOST CFLAGS SDCARD_DEV) 

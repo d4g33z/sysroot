@@ -500,7 +500,7 @@ ln -s ${CHOST}-wrapper g++
 ln -s ${CHOST}-wrapper c++
 
 EOF
-#   sysroot_run_in_chroot $1 /tmp/install_distcc_in_chroot.sh
+   sysroot_run_in_chroot $1 /tmp/install_distcc_in_chroot.sh
 
 }
 
