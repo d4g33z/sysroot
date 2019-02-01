@@ -1,8 +1,7 @@
 == Introduction ==
 This is an extension and amplification of [[Funtoo_Linux_Installation_on_ARM]]. It attempts to systematize and automate as much as possible of steps required to get Funtoo running on the 32 bit ARM Raspberry Pi device.
 
-This is an update of [[Crossdev_Automation]], reflecting the changes needed to accomodate the new kits structure of Funtoo, and to clean up the scripting used for automation. The document will remain available for reference purposes. 
-
+This is an update of [[Crossdev_Automation]], reflecting the changes needed to accomodate the new kits structure of Funtoo, and to clean up the scripting used for automation. The document will remain available for reference purposes.
 
 == Installation Overview ==
 # [[#Create Your Installation Settings]]
@@ -17,15 +16,35 @@ This is an update of [[Crossdev_Automation]], reflecting the changes needed to a
 # [[#Transfer the SDCard to the Raspberry Pi and Boot]]
 # [[#Enjoy!]]
 
-== Get the Bash Script ==
+== Get the Bash Script (Or Not) ==
+=== If You Want to Try the Script ===
+Development code to automate completely the process of installing is available on [https://github.com/d4g33z/sysroot.git github]. The structure of the file {{c|sysroot.sh}} should roughly correspond to the information contained here in this document. The script contains enough functionality to:
+* get the latest stage3 tarball
+* install necessary open and closed source firmware
+* configure the system: 
+** modify fstab to make a simple partition structure (no swap)
+** set a root password interactively
+** add appropriate services to default run level
+** set up the software clock
+** link to accelerated video libraries
+** set boot parameters
+* install a kernel 
+** rpi binary kernel, dtbs, and modules
+** OR cross compile a kernel, modules and dtbs from source
+* install QEMU and use binary translation to allowing chroot for further tweaking
+* partition and format an sdcard
+* copy the bootable configured stage3 to the sdcard
 
-Development code is available on [https://github.com/d4g33z/sysroot.git github]. The structure of the file {{c|sysroot.sh}} should roughly correspond to the information contained here.
+The script is designed to used on a machine that mounts the sdcard that will be used on the pi.
 
-Too use the script, edit the {{c|config}} file and then
+Too use the basic install functionality of the script, edit the {{c|config}} file (pay attention to the {{c|SDCARD_DEV}} variable) and then
 {{console|body=
 ###i## source sysroot.sh && sysroot_install
 }}
 
+Read the questions carefully and answer yes or no.
+=== If You Want to Do it Yourself ===
+Read the document here and follow the steps, referring {{c|sysroot.sh}} to reassure yourself of the correctness of the installer script.
 
 == Create Your Installation Settings ==
 
@@ -51,7 +70,7 @@ INSTALL_VARS=(KERNEL_WORK RPI_KERN_BRANCH SYSROOT_WORK STAGE3_URL CHOST CFLAGS S
 
 == Install the Stage 3 Tarball ==
 
-Download the current Funtoo stage 3 build appropriate for your Raspberry Pi device. Check the [[Subarches#arm32]] page, to see the version available for versions 1,2 and 3 of the Pi. Here we download the version for version 3 by setting the STAGE_URL variable in our configuration file. 
+Download the current Funtoo stage 3 build appropriate for your Raspberry Pi device. Check the [[Raspberry_Pi_(Version_3)]] page, to see the version available for versions 3 of the Pi. Here we download the version for version 3 by setting the STAGE_URL variable in our configuration file. 
 
 We need to save the archive to {{c|$STAGE3_ARCHIVE}} and unpack it to {{c|$SYSROOT}}. Back up or remove any previous work in that local.
 
@@ -84,7 +103,9 @@ Here, we attempt to encapsulate the instructions from [[Funtoo_Linux_Installatio
 We could also chroot into $SYSROOT using QEMU as described [[#Install a QEMU Chroot|below]] to install packages, edit files and use {{c|rc-update}} directly to set up services.
 
 ==== Set Up Mount Points ====
-Alter {{c|$SYSROOT/etc/fstab}} as follows. We remove the swap (for now), and alter the storage device name and parition file types. We also remove the {{c|/dev/cdrom}} device.
+Alter {{c|$SYSROOT/etc/fstab}} as follows. We remove the swap, and alter the storage device name and partition file types. We also remove the {{c|/dev/cdrom}} device.
+
+{{warning|No swap is configured. If you need to control out of memory conditions (e.g. when compiling chromium) you need to configure a swap parition or use {{Package|sys-block/zram-init}}. A partition must also be created and formatted on the device (probably on the sd card, but usb block memory devices can be used if necessary). }}
 
 {{file|name=$SYSROOT/etc/fstab|body=
 /dev/mmcblk0p1  /boot   vfat    noauto,noatime  1 2
@@ -144,6 +165,20 @@ If you want to try building native vc4 acceleration with media-libs/mesa you mus
 ##i##EOF
 }}
 
+If {{c|/var/log/Xorg.0.log}} is flooded with messages of the following type:
+ (EE) modeset(0): Failed to get GBM bo for flip to new front.
+ (EE) modeset(0): present flip failed
+the workaround is to disable the {{c|PageFlip}} parameter for the {{c|modesetting}} driver.
+
+To do this, as a root user create a file 20-displaylink.conf under /usr/share/X11/xorg.conf.d/ with the following content: 
+{{file|name=$SYSROOT/usr/share/X11/xorg.conf.d/20-displaylink.conf|body=
+
+Section "Device"
+  Identifier "DisplayLink"
+  Driver "modesetting"
+  Option "PageFlip" "false"
+EndSection  
+}}
 
 ==== Configure the Boot Parameters ====
 {{console|body=
@@ -151,6 +186,7 @@ If you want to try building native vc4 acceleration with media-libs/mesa you mus
 ##i## dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
 ##i## EOF
 }}
+
 == Install Binary Kernel, Modules and dtbs ==
 {{console|body=
 ###i## mkdir -p ${SYSROOT}/boot/overlays
@@ -422,3 +458,4 @@ Make sure you have {{Package|sys-fs/dosfstools}} installed.
 
 == Transfer the SDCard to the Raspberry Pi and Boot==
 == Enjoy! ==
+
