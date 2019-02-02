@@ -93,6 +93,11 @@ sysroot_install()
         git clone --depth=1 git://github.com/raspberrypi/firmware/ ${KERNEL_WORK}/firmware
     fi
 
+
+    if prompt_input_yN "update the firmware repos"; then
+		sysroot_update_firmware_repos
+	fi
+
     if prompt_input_yN "copy firmware"; then
         cp ${KERNEL_WORK}/firmware/boot/{bootcode.bin,fixup*.dat,start*.elf} ${SYSROOT}/boot
         cp -r ${KERNEL_WORK}/firmware/hardfp/opt ${SYSROOT}
@@ -609,12 +614,11 @@ set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/
 
 sysroot_update_firmware_repos()
 {
-        if prompt_input_yN "update the firmware repos"; then
-            git --git-dir=${KERNEL_WORK}/firmware/.git --work-tree=${KERNEL_WORK}/firmware fetch --depth=1
-            git --git-dir=${KERNEL_WORK}/firmware/.git --work-tree=${KERNEL_WORK}/firmware pull
-            git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree fetch --depth=1
-            git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull
-        fi
+		git --git-dir=${KERNEL_WORK}/firmware/.git --work-tree=${KERNEL_WORK}/firmware fetch --depth=1
+		git --git-dir=${KERNEL_WORK}/firmware/.git --work-tree=${KERNEL_WORK}/firmware pull
 
-
+    	if [ -d ${KERNEL_WORK}/firmware-nonfree ]; then
+			git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree fetch --depth=1
+			git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull
+		fi
 }
