@@ -10,7 +10,7 @@ CHOST=armv7a-hardfloat-linux-gnueabi
 CFLAGS="-O2 -pipe -march=armv7-a -mtune=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard"
 
 #SDCARD_DEV=mmcblk0p
-SDCARD_DEV=sdb
-#SDCARD_DEV=sde
+#SDCARD_DEV=sdb
+SDCARD_DEV=sde
 
 INSTALL_VARS=(KERNEL_WORK RPI_KERN_BRANCH SYSROOT_WORK STAGE3_URL CHOST CFLAGS SDCARD_DEV) 

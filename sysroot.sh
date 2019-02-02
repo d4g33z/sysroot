@@ -124,8 +124,7 @@ sysroot_install()
         ################################################################################
         # Set Up Root Password
         echo "Please enter a root password for the Raspberry Pi"
-        sed -i "s/root\:\*/root\:$(openssl passwd -1)/" $SYSROOT/etc/shadow
-        #sed -i "s/root\:\*/root\:`(openssl passwd -1)`/" $SYSROOT/etc/shadow
+        sed -i "s|root\:\*|root\:$(openssl passwd -1)|" $SYSROOT/etc/shadow
 
         ################################################################################
         # Set Up Networking
