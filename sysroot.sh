@@ -88,10 +88,9 @@ sysroot_install()
     echo -e $UL$MAG"Install the Firmware"
     echo -e $XX
 
-    mkdir -p ${KERNEL_WORK}
 
     if [ ! -d ${KERNEL_WORK}/firmware ]; then
-        git clone --depth 1 git://github.com/raspberrypi/firmware/ ${KERNEL_WORK}/firmware
+        git clone --depth=1 git://github.com/raspberrypi/firmware/ ${KERNEL_WORK}/firmware
     fi
 
     if prompt_input_yN "copy firmware"; then
@@ -101,7 +100,7 @@ sysroot_install()
 
     if prompt_input_yN "copy non-free wifi firmware for brcm"; then
         if [ ! -d ${KERNEL_WORK}/firmware-nonfree ]; then
-            git clone --depth 1 https://github.com/RPi-Distro/firmware-nonfree ${KERNEL_WORK}/firmware-nonfree
+            git clone --depth=1 https://github.com/RPi-Distro/firmware-nonfree ${KERNEL_WORK}/firmware-nonfree
         fi
         git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull origin
         mkdir -p ${SYSROOT}/lib/firmware/brcm
@@ -608,4 +607,14 @@ get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}-
 get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelversion;)}
 set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
 
+sysroot_update_firmware_repos()
+{
+        if prompt_input_yN "update the firmware repos"; then
+            git --git-dir=${KERNEL_WORK}/firmware/.git --work-tree=${KERNEL_WORK}/firmware fetch --depth=1
+            git --git-dir=${KERNEL_WORK}/firmware/.git --work-tree=${KERNEL_WORK}/firmware pull
+            git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree fetch --depth=1
+            git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull
+        fi
 
+
+}
