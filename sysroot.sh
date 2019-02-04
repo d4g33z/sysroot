@@ -110,6 +110,7 @@ sysroot_install()
         git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull origin
         mkdir -p ${SYSROOT}/lib/firmware/brcm
         cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/brcmfmac43430-sdio.{bin,txt} ${SYSROOT}/lib/firmware/brcm
+        cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/brcmfmac43455-sdio.{bin,txt,clm_blob} ${SYSROOT}/lib/firmware/brcm
     fi
 
     ################################################################################
