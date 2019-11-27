@@ -634,16 +634,19 @@ sysroot_replicate()
     echo -e $UL$MAG"Replicate Sysroot"
     echo -e $XX
 
-    if prompt_input_yN "replicate ${SYSROOT} to $1 via ssh?"; then
+    if prompt_input_yN "is /boot mounted?"; then                                                 
+        echo ""                                                          
+    else                                                                                           
+        echo "Fix it and try again"                                                                
+        return 1                                                                                    
+    fi
 
-        #if prompt_input_yN "use --delete on rsync for ${SDCARD} files"; then
-        #    RSYNC_DELETE=--delete
-        #fi
-        echo rsync -e "ssh" \
+    if prompt_input_yN "replicate ${SYSROOT} to $1 via ssh?"; then
+	#note we replicate /var/git/meta-repo now!
+        rsync -e "ssh" \
               --archive \
               --verbose \
               --recursive \
-              --exclude "var/git/*" \
               --exclude "home/*" \
               --exclude "mnt/*" \
               --exclude "root/*" \
@@ -654,7 +657,7 @@ sysroot_replicate()
               --exclude "sys/*" \
               --delete \
             /{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev,proc,sys} \
-            $1:/
+            $1
 
 
     fi
