@@ -623,3 +623,4 @@ sysroot_update_firmware_repos()
 			git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull
 		fi
 }
+
