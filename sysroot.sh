@@ -93,9 +93,9 @@ sysroot_install()
         git clone --depth=1 git://github.com/raspberrypi/firmware/ ${KERNEL_WORK}/firmware
     fi
 
-
-    if prompt_input_yN "update the firmware repos"; then
-		sysroot_update_firmware_repos
+    #doesn't work
+    #if prompt_input_yN "update the firmware repos"; then
+	#	sysroot_update_firmware_repos
 	fi
 
     if prompt_input_yN "copy firmware"; then
@@ -107,7 +107,6 @@ sysroot_install()
         if [ ! -d ${KERNEL_WORK}/firmware-nonfree ]; then
             git clone --depth=1 https://github.com/RPi-Distro/firmware-nonfree ${KERNEL_WORK}/firmware-nonfree
         fi
-        git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull origin
         mkdir -p ${SYSROOT}/lib/firmware/brcm
         cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/brcmfmac43430-sdio.{bin,txt} ${SYSROOT}/lib/firmware/brcm
         cp -r ${KERNEL_WORK}/firmware-nonfree/brcm/brcmfmac43455-sdio.{bin,txt,clm_blob} ${SYSROOT}/lib/firmware/brcm
@@ -613,16 +612,6 @@ get_kernel_release() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}-
 get_kernel_version() {(cd ${KERNEL_WORK}/linux; ARCH=arm CROSS_COMPILE=${CHOST}- make kernelversion;)}
 set_kernel_extraversion() {(cd ${KERNEL_WORK}/linux; sed -i "s/EXTRAVERSION =.*/EXTRAVERSION = $@/" Makefile;)}
 
-sysroot_update_firmware_repos()
-{
-		git --git-dir=${KERNEL_WORK}/firmware/.git --work-tree=${KERNEL_WORK}/firmware fetch --depth=1
-		git --git-dir=${KERNEL_WORK}/firmware/.git --work-tree=${KERNEL_WORK}/firmware pull
-
-    	if [ -d ${KERNEL_WORK}/firmware-nonfree ]; then
-			git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree fetch --depth=1
-			git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull
-		fi
-}
 
 sysroot_replicate()
 {
@@ -663,3 +652,16 @@ sysroot_replicate()
     fi
 
 }
+
+#doesn't work
+sysroot_update_firmware_repos()
+{
+		git --git-dir=${KERNEL_WORK}/firmware/.git --work-tree=${KERNEL_WORK}/firmware fetch --depth=1
+		git --git-dir=${KERNEL_WORK}/firmware/.git --work-tree=${KERNEL_WORK}/firmware pull
+
+    	if [ -d ${KERNEL_WORK}/firmware-nonfree ]; then
+			git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree fetch --depth=1
+			git --git-dir=${KERNEL_WORK}/firmware-nonfree/.git --work-tree=${KERNEL_WORK}/firmware-nonfree pull
+		fi
+}
+
