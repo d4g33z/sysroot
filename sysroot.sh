@@ -644,6 +644,7 @@ sysroot_replicate()
               --exclude "dev/*" \
               --exclude "proc/*" \
               --exclude "sys/*" \
+              --exclude "run/*" \
               --delete \
             /{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev,proc,sys} \
             $1
