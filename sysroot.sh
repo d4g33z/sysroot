@@ -624,27 +624,36 @@ sysroot_update_firmware_repos()
 		fi
 }
 
-sysroot_sync()
+sysroot_replicate()
 {
-    if [ $# -lt 1 ]; then
-        echo "usage: sysroot_sync [USER]@HOST"
+    if [ $# -ne 1 ]; then
+        echo "usage: sysroot_replicate USER@HOST:SYSROOT"
         return 1
     fi
 
-    echo -e $UL$MAG"Sync Installation to Running Pi"
+    echo -e $UL$MAG"Replicate Sysroot"
     echo -e $XX
-    if prompt_input_yN "deploy ${SYSROOT} to $1 via ssh?"; then
 
-        if prompt_input_yN "use --delete on rsync for ${SDCARD} files"; then
-            RSYNC_DELETE=--delete
-        fi
+    if prompt_input_yN "replicate ${SYSROOT} to $1 via ssh?"; then
+
+        #if prompt_input_yN "use --delete on rsync for ${SDCARD} files"; then
+        #    RSYNC_DELETE=--delete
+        #fi
         echo rsync -e "ssh" \
               --archive \
               --verbose \
               --recursive \
               --exclude "var/git/*" \
-            ${RSYNC_DELETE} \
-            ${SYSROOT}/{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev,proc,sys} \
+              --exclude "home/*" \
+              --exclude "mnt/*" \
+              --exclude "root/*" \
+              --exclude "srv/*" \
+              --exclude "tmp/*" \
+              --exclude "dev/*" \
+              --exclude "proc/*" \
+              --exclude "sys/*" \
+              --delete \
+            /{boot,bin,etc,home,lib,mnt,opt,root,run,sbin,srv,tmp,usr,var,dev,proc,sys} \
             $1:/
 
 
