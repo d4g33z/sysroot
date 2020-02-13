@@ -96,7 +96,7 @@ sysroot_install()
     #doesn't work
     #if prompt_input_yN "update the firmware repos"; then
 	#	sysroot_update_firmware_repos
-	fi
+	#fi
 
     if prompt_input_yN "copy firmware"; then
         cp ${KERNEL_WORK}/firmware/boot/{bootcode.bin,fixup*.dat,start*.elf} ${SYSROOT}/boot
